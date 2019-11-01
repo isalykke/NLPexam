@@ -10,7 +10,6 @@ def get_valid_filename(s):
     return re.sub(r'(?u)[^-\w.]', '', s)
 
 
-
 _URL = "https://www.grc.com/securitynow.htm" #current site
 _URLARCHIVE = "https://www.grc.com/sn/past/year.htm" #generic site for older episodes
 _ALLURLs = []
@@ -30,7 +29,7 @@ for url in _ALLURLs:
     for i, link in enumerate(soup.findAll('a')):
         _FULLURL = url + str(link.get('href'))
         if _FULLURL.endswith('.txt'):
-            urls.append("https://www.grc.com" + soup.select('a')[i].attrs['href']) #remove "securitynow.htm/" from url to get to the right page for txt files
+            urls.append("https://www.grc.com" + soup.select('a')[i].attrs['href']) #append episidename to grc website
             names.append(soup.select('a')[i].attrs['href'])
 
 names_urls = zip(names, urls)
