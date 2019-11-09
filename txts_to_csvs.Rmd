@@ -5,15 +5,14 @@ date: "11/1/2019"
 output: html_document
 ---
 
-Loop over txts 
-
+This function takes in a bunch of txt files and outputs a cleaned up csv file with speach turns as rows
+It also finds and adds metadata and lastly saves to one big csv file
 ```{r setup, include=FALSE}
 
 library(tidyverse)
 `%ni%` = Negate(`%in%`)
 
 txts <- list.files(path = "./txts/", pattern = "*.txt")
-
 
 read_and_preprocess <- function(txt){
   
@@ -25,7 +24,6 @@ read_and_preprocess <- function(txt){
                      quote = "",
                      comment.char = "",
                      encoding="latin1")
-                     comment.char = "")
   
   #find all metadata
   speakers <- text[grepl("SPEAKERS|HOSTS", text$V1),]
@@ -52,7 +50,7 @@ read_and_preprocess <- function(txt){
   speaker_list <- speaker_list[, "speaker"]
   
   name_regex <- paste(speaker_list[["speaker"]], collapse="|")
-  text3 <- text %>% 
+  cleaned_text <- text %>% 
     mutate(V1 = gsub(name_regex, "", V1),
            V1 = str_replace(V1,"^:\\W*", ""))
   
@@ -73,21 +71,22 @@ read_and_preprocess <- function(txt){
       current_speaker[n] = current_speaker[n-1]
     }
     
-    test = data.frame(current_speaker)
+    monologues = data.frame(current_speaker)
     
     n = n+1
   }
   
-  #add new info to the dataframe (updated current_speaker + cleaned utterance) + filter by speaker + copyright
+  #add new info to the dataframe (updated speaker column + cleaned utterance) + filter by speaker + copyright
   text <- text %>% 
-    mutate(real_speaker = test$current_speaker,
-                 utterance = text3$V1) %>% 
-    filter(real_speaker %in% speaker_list[["speaker"]]) %>% 
-    filter(copyright != TRUE) %>% 
+    mutate(real_speaker = monologues$current_speaker, #add the real speaker
+                 utterance = cleaned_text$V1) %>% #... and the cleaned utterances
+    filter(real_speaker %in% speaker_list[["speaker"]]) %>% #filter out rows that are not utterances
+    filter(row_number() <= which(grepl("Copyright (c)", V1, fixed = TRUE))) %>% #filter out all rows *after* copyright
+    filter(copyright != TRUE) %>% #lastly filter out the copyright row itself
     select(-c(copyright, V1, current_speaker)) #remove some columns we don't want in the finished dataset
 }
   
-#test <- read_and_preprocess(txts[59])
+#test <- read_and_preprocess(txts[])
 
  all_preprocessed <- plyr::ldply(txts, function(txt){
    tryCatch({
@@ -99,236 +98,7 @@ read_and_preprocess <- function(txt){
    )
  }) %>%
   dplyr::as_tibble()
-read_and_preprocess(txts[34])
-
-# all_preprocessed <- plyr::ldply(txts, function(txt){
-#   tryCatch({
-#     read_and_preprocess(txt)
-#   }, error = function(e){
-#       print(paste0("Failed: ", txt))
-#       return(NULL)
-#     }
-#   )
-# }) %>%
-#  dplyr::as_tibble()
-
-
-#write.csv(all_preprocessed, file = "preprocessed_txts.csv")
 
 write.csv(all_preprocessed, file = "preprocessed_txts.csv", fileEncoding = "utf8")
-#Do you really want to copy the entire data frame each time you add a row? Probably not. Generate a list of each row using lapply and then stitch them together using do.call(rbind,...).
 
 ```
-
-Ludvigs kode
-```{r}
-
-
-####
-
-#library(tidyverse)
-#library(LRO.utilities)
-# 
-# 
-# txts <- list.files(path = "./txts/", pattern = "*.txt")
-#
-# read_and_preprocess <- function(txt){
-#   text <- read.table(paste0("./txts/", txt), 
-#                      sep = "\n", 
-#                      quote = "", 
-#                      comment.char = "")
-#   
-#   
-#   ### META DATA
-#   
-#   speakers <- text[grepl("SPEAKERS|HOSTS", text$V1),]
-#   speakers <- sub(".*:\t", "", speakers)
-#   speakers <- tibble::enframe(as.vector(unlist(str_split(toupper(speakers), " & "))), name = NULL, value = "speaker")
-#   speakers[["alias"]] <- str_extract(speakers[["speaker"]], "[A-Z]*")
-#   speakers <- speakers %>% tidyr::gather(key = "col", value = "speaker", 1:2)
-#   speakers <- speakers[, "speaker"]
-#   
-#   # Desription
-#   description <- as.character(text[grepl("DESCRIPTION", text$V1, fixed = TRUE),][[1]])
-#   
-#   # Date 
-#   date <- mdy(as.character(text[grepl("DATE", text$V1, fixed = TRUE),][[1]]))
-#   
-#   # Speaker line
-#   speaker_line <- as.character(text[grepl("SPEAKERS|HOSTS", text$V1),][[1]])
-#   
-#   # Title line
-#   title <- as.character(text[grepl("TITLE", text$V1, fixed = TRUE),][[1]])
-#   
-#   # Episode
-#   episode <- str_extract(as.character(text[grepl("EPISODE", text$V1, fixed = TRUE),][[1]]), "[0-9]{3}")
-#       
-#   
-#   ### Speech Turn Data
-#   
-#   
-#   replace_speaker_na <- function(data, speaker_col="speaker", width = 5){
-#     padding_rows <- data %>% filter(row_number() %in% seq_len(width))
-#     data <- padding_rows %>%
-#       bind_rows(data, padding_rows) %>%
-#       dplyr::mutate(
-#         speaker_prev = LRO.utilities::roll_previous(!!as.name(speaker_col), width = width, FUN = function(x){
-#              tail(na.omit(x), 1)
-#            }),
-#         speaker_tmp = ifelse(is.na(!!as.name(speaker_col)), speaker_prev, !!as.name(speaker_col))
-#         )
-#     data[[speaker_col]] <- data[["speaker_tmp"]]
-#     data[["speaker_tmp"]] <- NULL
-#     data[["speaker_prev"]] <- NULL
-#     
-#     data %>%
-#       filter(row_number() %ni% c(n()-seq_len(width)+1),
-#             row_number() %ni% seq_len(width))
-#   }
-#   
-#   text2 <- text[text[["V1"]] != " ", ] %>%
-#     tibble::enframe(name = NULL, value = "V1") %>%
-#     mutate(V1 = as.character(V1),
-#            speaker = stringr::str_extract(string = V1, "[A-Z\\W]*:"),
-#            speaker = ifelse(speaker == ":", logical(), speaker)) %>%
-#     replace_speaker_na(width = 20) %>% 
-#     mutate(speaker = str_extract(speaker, "[A-Z]*"),
-#            is_copyright = grepl("Copyright (c)", V1, fixed = TRUE)) %>%
-#     filter(speaker %in% speakers$speaker,
-#            !str_detect(V1, "GIBSON RESEARCH"))
-#   
-#   copyright_row <- which(text2$is_copyright)
-#   
-#   if (length(copyright_row) > 0){
-#     text2 <- text2 %>% 
-#     filter(row_number() < copyright_row)
-#   }
-#   
-#   text2 <- text2 %>% 
-#     mutate(description = description,
-#              date = date,
-#              speakers = speaker_line,
-#              episode = episode,
-#              title = title) %>% 
-#     select(-is_copyright)
-#   
-#   # Clean utterance
-#   name_regex <- paste(speakers[["speaker"]], collapse="|")
-#   text3 <- text2 %>% 
-#     mutate(V1 = gsub(name_regex, "", V1),
-#            V1 = str_replace(V1,"^:\\W*", ""))
-#   
-#   text3
-# }
-# 
-# # read_and_preprocess(txts)
-# 
-# all_preprocessed <- plyr::ldply(txts, function(txt){
-#   tryCatch({
-#     read_and_preprocess(txt)
-#   }, error = function(e){
-#       print(paste0("Failed: ", txt))
-#       return(NULL)
-#     }
-#   )
-# }) %>% 
-#  dplyr::as_tibble()
-# 
-# #read_and_preprocess(txts[34])
-# 
-# write.csv(all_preprocessed, "preprocessed.csv")
-
-###
-
-```
-
-old code
-```{r}
-
-# 
-# #loop over each line in the txt dataframe to find speaker data
-#   for (row in text$V1) {
-# 
-#     #skip the first line (gibson will fuck you up)
-#     if (startsWith(row, "GIBSON RESEARCH")) {
-#       next
-#     }
-# 
-#     #stop looping once you reach the copyright info at the end of the text
-#     if (startsWith(row, "Copyright (c)")) {
-#       break
-#     }
-# 
-#     #if the row is empty, skip it
-#     if (row %in% c(" ", "")) {
-#       next
-#     }
-# 
-# 
-#     #find all uttereances and speakers (turn-taking) and save in a dataframe (temp.data)
-#     speaker[n] = str_extract(row, "[A-Z]+")
-# 
-#     #if the speaker is not one of the hosts (e.i. a continuous monologue) copy the previous speaker
-#     if (speaker[n] %ni% speakers[[1]] & n > 1) {
-#          speaker[n] = speaker[n-1]
-#     }
-# 
-#     utterance[n] = gsub(paste(speakers[[1]], collapse="|"), "", row)
-# 
-#     temp.data = data.frame(utterance, speaker)
-#     #n = n+1
-# 
-#   }
-# 
-#   #filter out non-speaker rows and add metadata to dataframe
-#   temp.data2 = filter(temp.data, temp.data$speaker %in% speakers[[1]]) %>%
-#     mutate(description = description,
-#            date = date,
-#            speakers = speakers_,
-#            episode = episode,
-#            title = title)
-# 
-#   #add the text to the full dataset
-#   final_data = rbind(final_data, temp.data2)
-# 
-#   print(txt) #print status
-  # #loop over each line in the txt dataframe to find metadata
-  # for (row in text$V1) {
-  # 
-  #   # find all metadata and save into variables:
-  # 
-  #   if (grepl("DESCRIPTION", row, fixed = TRUE)) {
-  #     description = sub(".*:", "", row)
-  #     next
-  #   }
-  # 
-  #   if (grepl("DATE", row, fixed = TRUE)) {
-  #     date = lubridate::mdy(sub(".*:", "", row))
-  #     next
-  #   }
-  # 
-  #   if (grepl("SPEAKERS", row, fixed = TRUE)) {
-  #     speakers_ = sub(".*:\t", "", row)
-  #     speakers = str_split(toupper(speakers_), " ")
-  #     next
-  #   }
-  #   
-  #   if (grepl("HOSTS", row, fixed = TRUE)) {
-  #     speakers_ = sub(".*:\t", "", row)
-  #     speakers = str_split(toupper(speakers_), " ")
-  #     next
-  #   }
-  # 
-  #   if (grepl("TITLE", row, fixed = TRUE)) {
-  #     title = sub(".*:", "", row)
-  #     next
-  #   }
-  # 
-  #   if (grepl("EPISODE", row, fixed = TRUE)) {
-  #     episode = str_extract(txt, "[0-9]{3}")
-  #     next
-  #   }
-  # 
-  # }
-```
-
