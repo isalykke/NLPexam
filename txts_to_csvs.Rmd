@@ -79,14 +79,16 @@ read_and_preprocess <- function(txt){
   #add new info to the dataframe (updated speaker column + cleaned utterance) + filter by speaker + copyright
   text <- text %>% 
     mutate(real_speaker = monologues$current_speaker, #add the real speaker
-                 utterance = cleaned_text$V1) %>% #... and the cleaned utterances
+           utterance = cleaned_text$V1,
+           year = lubridate::year(date),
+           month = lubridate::month(date)) %>% #... and the cleaned utterances
     filter(real_speaker %in% speaker_list[["speaker"]]) %>% #filter out rows that are not utterances
     filter(row_number() <= which(grepl("Copyright (c)", V1, fixed = TRUE))) %>% #filter out all rows *after* copyright
     filter(copyright != TRUE) %>% #lastly filter out the copyright row itself
     select(-c(copyright, V1, current_speaker)) #remove some columns we don't want in the finished dataset
 }
   
-#test <- read_and_preprocess(txts[])
+#test <- read_and_preprocess(txts[10])
 
  all_preprocessed <- plyr::ldply(txts, function(txt){
    tryCatch({
