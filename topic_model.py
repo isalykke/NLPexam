@@ -7,25 +7,43 @@ import numpy as np
 import re,string
 
 df = pd.read_csv('preprocessed_txts.csv', encoding="utf8")
-#convert month and year to strings
-df["month"] = df["month"].astype('str')
-df["year"] = df["year"].astype('str')
-#create unique month to split by
-df['unique_month'] = df[['year', 'month']].apply('_'.join, axis=1)
-df
 
 #find unique speakers 
 df['speakers'].head()
 x = np.array(list(df['speakers']))
 np.unique(x) 
 
-#should these be included in the function???
+
+####################################################################################
+############################## ANALYSIS BY MONTH ###############################
+######################################################################################
+
+
+#convert month and year to strings
+df["month"] = df["month"].astype('str')
+df["year"] = df["year"].astype('str')
+#create unique month to split by
+df['unique_month'] = df[['year', 'month']].apply('_'.join, axis=1)
+
+#come up with a threshold for how many times words occur - more informative - ziphean phenomena to find the right size?
+#strip out some more stopwords maybe
+#split into dataframes in panda by month and do one lda model pr dataframe
+
+
+#do a model for each month to 3 months and look at the top 5-6 topics in a loop
+#save it in a dictionary with dataframe as the key and the topics as the value 
+
+
+#create a list containing datasets split by unique_month to loop over:
+df_list = [df for _, df in df.groupby(df['unique_month'])]
+
+
+#prepare stoplist and lemmatizer
 stoplist = stopwords.words('english')
 lmtzr = WordNetLemmatizer()
 
 
-
-def clean_n_lda(df, total_topics):
+def clean_df(df):
     sentences = list(df.utterance)
     # RE removing words with length <2 characters
     process_sent = list(filter(None, [re.sub(r'\b\w{1,3}\b','', x) for x in sentences])) 
@@ -59,33 +77,55 @@ def clean_n_lda(df, total_topics):
         for document in process_sent
     ]
 
+        
+    
     dictionary = corpora.Dictionary(cleaned_sentences) #a mapping between words and their integer ids.
     corpus1 = [dictionary.doc2bow(sent) for sent in cleaned_sentences]
 
+    #create lda model
+    lda = models.LdaModel(corpus1, id2word=dictionary, num_topics = total_topics) #should I set eta??
 
+    return lda
+
+    #cleaned_dataframe = pd.Series(cleaned_sentences) #convert to series to keep each sentence as a row
+    #cleaned_dataframe = cleaned_dataframe.to_frame('sentences') #convert the series to a dataframe
+    #cleaned_dataframe['month'] = df['unique_month'] # add month to the dataframe
+
+    #return cleaned_dataframe
+
+total_topics = 5
+test = clean_df(df_list[0])
+
+
+def do_lda(clean_df, total_topics):
+
+    dictionary = corpora.Dictionary(clean_df[sentences]) #a mapping between words and their integer ids.
+    corpus1 = [dictionary.doc2bow(sent) for sent in clean_df[sentences]]
+
+    #create lda model
     lda = models.LdaModel(corpus1, id2word=dictionary, num_topics = total_topics) #should I set eta??
 
 
+
+lda_test = do_lda(test, 5)
+
+#for df in df_list:
+#    clean_df = clean_df(df)
+#    lda = do_lda(clean_df, 20) #20 is the optimal number of topics (on the full corpus at least, calculated using hdp model)
 
 
 
 #questions:
 #what's a theoretically sound cutoff for tokens? based on frequency in individual df maybe?
 #what should be my output? - show_topic ot get_tpic_terms or save??
-#how many topis?
+#how many topis? - do a test by looping over parts of the dataset and try out different number of topics to see if they differ a lot accross different splits of the data
+#number of topics might be a thing to include in discussion??
 
 
 
-
-
-
-
-
-
-
-
-
-
+####################################################################################
+############################## FULL DATASET ANALYSIS ###############################
+######################################################################################
 
 
 sentences = list(df.utterance)
@@ -126,8 +166,8 @@ lmtzr = WordNetLemmatizer()
 stoplist = stopwords.words('english')
 
 process_sent = [
-    [token for token in text if frequency[token] > 1
-     and token not in stoplist]
+    [token for token in text if frequency[token] > 1 #and ordet optræder i over 25% af alle sætninger??
+    and token not in stoplist]
     for text in process_sent
 ]
 
@@ -155,44 +195,11 @@ corpus1 = [dictionary.doc2bow(sent) for sent in cleaned_sentences]
 
 
 # Do the LDA - you must choose number of topics
-total_topics = 5
+total_topics = 20
 lda = models.LdaModel(corpus1, id2word=dictionary, num_topics = total_topics)
 
-lda.show_topics(total_topics,10)
-
+lda.show_topics(total_topics,20)
 lda.get_term_topics("password")
-
-
-
-##########################################
-########## LOOP OVER MONTHS ##############
-############################################
-
-
-#come up with a threshold for how many times words occur - more informative - ziphean phenomena to find the right size?
-#strip out some more stopwords maybe
-#split into dataframes in panda by month and do one lda model pr dataframe
-
-
-
-#do a model for each month to 3 months and look at the top 5-6 topics in a loop
-#save it in a dictionary with dataframe as the key and the topics as the value 
-
-
-x = np.array(list(df['speakers']))
-np.unique(x) 
-
-#how to use a cleaned corpus for this?
-
-
-
-
-for month, df in df.groupby('month'):
-    print(month)
-
-for period in periods:
-    create the corpus
-    lda = models.LdaModel(corpus, id2word=dictionary, num_topics = total_topics)
 
 
 ##########################################
@@ -201,7 +208,7 @@ for period in periods:
 
 #do an lsimodel - can estimate the optimal number of topics by itself
 
-lsimodel = models.LsiModel(corpus1, num_topics=20, id2word=dictionary)
+lsimodel = models.LsiModel(corpus1, num_topics=100, id2word=dictionary)
 lsimodel.show_topics(num_topics=5)  # Showing only the top 5 topics
 lsitopics = lsimodel.show_topics(formatted=False)
 
@@ -245,7 +252,6 @@ import matplotlib.pyplot as plt
 g=sns.clustermap(df_hdp.corr(), center=0, cmap="RdBu", metric='cosine', linewidths=1, figsize=(10, 12))
 plt.setp(g.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
 plt.show()
-
 
 
 
