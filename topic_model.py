@@ -7,12 +7,86 @@ import numpy as np
 import re,string
 
 df = pd.read_csv('preprocessed_txts.csv', encoding="utf8")
-df.shape
+#convert month and year to strings
+df["month"] = df["month"].astype('str')
+df["year"] = df["year"].astype('str')
+#create unique month to split by
+df['unique_month'] = df[['year', 'month']].apply('_'.join, axis=1)
+df
 
 #find unique speakers 
 df['speakers'].head()
 x = np.array(list(df['speakers']))
 np.unique(x) 
+
+#should these be included in the function???
+stoplist = stopwords.words('english')
+lmtzr = WordNetLemmatizer()
+
+
+
+def clean_n_lda(df, total_topics):
+    sentences = list(df.utterance)
+    # RE removing words with length <2 characters
+    process_sent = list(filter(None, [re.sub(r'\b\w{1,3}\b','', x) for x in sentences])) 
+    # RE removing URLs
+    process_sent = list(filter(None, [re.sub(r'http\S+','', x) for x in process_sent]))
+    # RE removing numbers
+    process_sent = list(filter(None, [re.sub(r'\d+','', x) for x in process_sent]))
+    # RE removing punctuation
+    process_sent = list(filter(None, [re.sub(r'[\.\,\'\"\!\?\:\;\-\_\=\(\)\|\*\@\#\&\$\"\/\%\+]+','', x) for x in process_sent]))
+    # RE removing non-ASCII characters
+    process_sent = list(filter(None, [re.sub(r'[^\x00-\x7F]+','', x) for x in process_sent]))
+
+    #make a list of lists of utterances
+    process_sent = [[word for word in document.lower().split()] for document in process_sent]
+
+    #calculate the frequency of each word, save it in a dictionary of format {"word":n}
+    frequency = defaultdict(int)
+    for text in process_sent:
+        for token in text:
+            frequency[token] += 1
+
+    #remove words that appear only once, as well as words in our stop list
+    process_sent = [
+        [token for token in text if frequency[token] > 1 #change this number to only include more informative words
+         and token not in stoplist]
+        for text in process_sent
+    ]
+
+    cleaned_sentences = [
+        [lmtzr.lemmatize(word) for word in document if word not in stoplist]
+        for document in process_sent
+    ]
+
+    dictionary = corpora.Dictionary(cleaned_sentences) #a mapping between words and their integer ids.
+    corpus1 = [dictionary.doc2bow(sent) for sent in cleaned_sentences]
+
+
+    lda = models.LdaModel(corpus1, id2word=dictionary, num_topics = total_topics) #should I set eta??
+
+
+
+
+
+#questions:
+#what's a theoretically sound cutoff for tokens? based on frequency in individual df maybe?
+#what should be my output? - show_topic ot get_tpic_terms or save??
+#how many topis?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 sentences = list(df.utterance)
 sentences
@@ -60,9 +134,9 @@ process_sent = [
 
 #finally, lemmantize the tokens
 cleaned_sentences = [
-     [lmtzr.lemmatize(word) for word in document if word not in stoplist]
+    [lmtzr.lemmatize(word) for word in document if word not in stoplist]
     for document in process_sent
- ]
+]
 
 type(cleaned_sentences)
 
@@ -86,18 +160,36 @@ lda = models.LdaModel(corpus1, id2word=dictionary, num_topics = total_topics)
 
 lda.show_topics(total_topics,10)
 
+lda.get_term_topics("password")
 
+
+
+##########################################
+########## LOOP OVER MONTHS ##############
+############################################
 
 
 #come up with a threshold for how many times words occur - more informative - ziphean phenomena to find the right size?
 #strip out some more stopwords maybe
 #split into dataframes in panda by month and do one lda model pr dataframe
 
+
+
 #do a model for each month to 3 months and look at the top 5-6 topics in a loop
 #save it in a dictionary with dataframe as the key and the topics as the value 
 
 
-how to use a cleaned corpus for this?
+x = np.array(list(df['speakers']))
+np.unique(x) 
+
+#how to use a cleaned corpus for this?
+
+
+
+
+for month, df in df.groupby('month'):
+    print(month)
+
 for period in periods:
     create the corpus
     lda = models.LdaModel(corpus, id2word=dictionary, num_topics = total_topics)
