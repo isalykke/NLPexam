@@ -2,6 +2,13 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
+
+import gensim
+from gensim import corpora, models, similarities
+
+import _collections
+from _collections import defaultdict
+
 import pandas as pd
 import numpy as np 
 import re,string
@@ -12,6 +19,8 @@ df = pd.read_csv('preprocessed_txts.csv', encoding="utf8")
 df['speakers'].head()
 x = np.array(list(df['speakers']))
 np.unique(x) 
+
+df.head
 
 
 ####################################################################################
@@ -25,14 +34,6 @@ df["year"] = df["year"].astype('str')
 #create unique month to split by
 df['unique_month'] = df[['year', 'month']].apply('_'.join, axis=1)
 
-#come up with a threshold for how many times words occur - more informative - ziphean phenomena to find the right size?
-#strip out some more stopwords maybe
-#split into dataframes in panda by month and do one lda model pr dataframe
-
-
-#do a model for each month to 3 months and look at the top 5-6 topics in a loop
-#save it in a dictionary with dataframe as the key and the topics as the value 
-
 
 #create a list containing datasets split by unique_month to loop over:
 df_list = [df for _, df in df.groupby(df['unique_month'])]
@@ -43,7 +44,10 @@ stoplist = stopwords.words('english')
 lmtzr = WordNetLemmatizer()
 
 
-def clean_df(df):
+def clean_n_lda(df, num_lda_topics):
+
+    ############# TEXT CLEANUP ################
+
     sentences = list(df.utterance)
     # RE removing words with length <2 characters
     process_sent = list(filter(None, [re.sub(r'\b\w{1,3}\b','', x) for x in sentences])) 
@@ -68,7 +72,8 @@ def clean_df(df):
     #remove words that appear only once, as well as words in our stop list
     process_sent = [
         [token for token in text if frequency[token] > 1 #change this number to only include more informative words
-         and token not in stoplist]
+        and frequency[token] < 10
+        and token not in stoplist]
         for text in process_sent
     ]
 
@@ -76,57 +81,66 @@ def clean_df(df):
         [lmtzr.lemmatize(word) for word in document if word not in stoplist]
         for document in process_sent
     ]
-
-        
     
+    
+    ############# LDA MODEL ################
+
     dictionary = corpora.Dictionary(cleaned_sentences) #a mapping between words and their integer ids.
     corpus1 = [dictionary.doc2bow(sent) for sent in cleaned_sentences]
 
     #create lda model
-    lda = models.LdaModel(corpus1, id2word=dictionary, num_topics = total_topics) #should I set eta??
+    lda = models.LdaMulticore(corpus1, id2word=dictionary, num_topics = num_lda_topics, workers = 8) #should I set eta??
 
     return lda
 
-    #cleaned_dataframe = pd.Series(cleaned_sentences) #convert to series to keep each sentence as a row
-    #cleaned_dataframe = cleaned_dataframe.to_frame('sentences') #convert the series to a dataframe
-    #cleaned_dataframe['month'] = df['unique_month'] # add month to the dataframe
-
-    #return cleaned_dataframe
-
-total_topics = 5
-test = clean_df(df_list[0])
+#test = clean_n_lda(df_list[100], 20) # test on one dataframe
 
 
-def do_lda(clean_df, total_topics):
-
-    dictionary = corpora.Dictionary(clean_df[sentences]) #a mapping between words and their integer ids.
-    corpus1 = [dictionary.doc2bow(sent) for sent in clean_df[sentences]]
-
-    #create lda model
-    lda = models.LdaModel(corpus1, id2word=dictionary, num_topics = total_topics) #should I set eta??
+############# LOOP OVER ALL MONTHS ################
 
 
+num_lda_topics = 20
 
-lda_test = do_lda(test, 5)
+col_names = [name for name in df.columns] #make a list of the col names 
+col_names.append('topics') #append "topics" to that list
+new_df = pd.DataFrame(columns = col_names) #create a new dataframe with same col names to have all topics pr month
 
-#for df in df_list:
-#    clean_df = clean_df(df)
-#    lda = do_lda(clean_df, 20) #20 is the optimal number of topics (on the full corpus at least, calculated using hdp model)
+#loop over each df (one pr month) and find topics
+for df in df_list:
+
+    lda = clean_n_lda(df, num_lda_topics) #perform lda on each month
+    print(len(df))
+
+    #append the topics to the df
+    df['topics'] = [lda.show_topics(num_lda_topics)] * len(df) #append the topics to the current df
+    new_df = pd.concat([new_df, df]) #concatenate all the dfs with topics to one new df
 
 
+'''
+questions:
 
-#questions:
-#what's a theoretically sound cutoff for tokens? based on frequency in individual df maybe?
-#what should be my output? - show_topic ot get_tpic_terms or save??
-#how many topis? - do a test by looping over parts of the dataset and try out different number of topics to see if they differ a lot accross different splits of the data
-#number of topics might be a thing to include in discussion??
+NUM OF TOPICS:
+how many topis? - do a test by looping over parts of the dataset 
+and try out different number of topics to see if they differ a lot accross different splits of the data
+- number of topics might be a thing to include in discussion??
+
+CUTOFF
+what's a theoretically sound cutoff for tokens? based on frequency in individual df maybe?
+come up with a threshold for how many times words occur - 
+more informative - ziphean phenomena to find the right size?
+three different ways of doing the cutof - run it with each  and report the difference
+
+- just pick the number
+- sort out words that occur in over 25% of the sentences
+- 
+
+'''
 
 
 
 ####################################################################################
 ############################## FULL DATASET ANALYSIS ###############################
 ######################################################################################
-
 
 sentences = list(df.utterance)
 sentences
@@ -196,7 +210,7 @@ corpus1 = [dictionary.doc2bow(sent) for sent in cleaned_sentences]
 
 # Do the LDA - you must choose number of topics
 total_topics = 20
-lda = models.LdaModel(corpus1, id2word=dictionary, num_topics = total_topics)
+lda = models.LdaMulticore(corpus1, id2word=dictionary, num_topics = total_topics, workers = 8)
 
 lda.show_topics(total_topics,20)
 lda.get_term_topics("password")
