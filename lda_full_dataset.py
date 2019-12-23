@@ -13,42 +13,43 @@ import pandas as pd
 import numpy as np 
 import re,string
 
-df = pd.read_csv('preprocessed_txts.csv', encoding="utf8")
+df = pd.read_csv('preprocessed_txts_full_episodes.csv', encoding="utf8")
 
 #find unique speakers 
 x = np.array(list(df['speakers']))
 len(np.unique(x))
 
-sentences = list(df.utterance)
-sentences
+episodes = list(df.whole_episode)
+episodes
 
 ##########################################
 ############# TEXT CLEANUP ################
 ############################################
 
 # RE removing words with length <2 characters
-process_sent = list(filter(None, [re.sub(r'\b\w{1,3}\b','', x) for x in sentences]))
+process_episode = list(filter(None, [re.sub(r'\b\w{1,3}\b','', x) for x in episodes]))
 # RE removing URLs
-process_sent = list(filter(None, [re.sub(r'http\S+','', x) for x in process_sent]))
+process_episode = list(filter(None, [re.sub(r'http\S+','', x) for x in process_episode]))
 # RE removing numbers
-process_sent = list(filter(None, [re.sub(r'\d+','', x) for x in process_sent]))
+process_episode = list(filter(None, [re.sub(r'\d+','', x) for x in process_episode]))
 # RE removing punctuation
-process_sent = list(filter(None, [re.sub(r'[\.\,\'\"\!\?\:\;\-\_\=\(\)\|\*\@\#\&\$\"\/\%\+]+','', x) for x in process_sent]))
+process_episode = list(filter(None, [re.sub(r'[\>\€\.\,\'\"\!\?\:\;\-\_\=\(\)\|\*\@\#\&\$\"\/\%\+]+','', x) for x in process_episode]))
 # RE removing non-ASCII characters
-process_sent = list(filter(None, [re.sub(r'[^\x00-\x7F]+','', x) for x in process_sent]))
+process_episode = list(filter(None, [re.sub(r'[^\x00-\x7F]+','', x) for x in process_episode]))
 
 
-#make a list of lists of utterances
-process_sent = [[word for word in document.lower().split()] for document in process_sent]
+#make a list of lists of words
+process_episode = [[word for word in document.lower().split()] for document in process_episode]
 
 #calculate the frequency of each word, save it in a dictionary of format {"word":n}
 import _collections
 from _collections import defaultdict
 
 frequency = defaultdict(int)
-for text in process_sent:
+for text in process_episode:
     for token in text:
         frequency[token] += 1
+
 
 
 #remove words that appear only once, as well as words in our stop list
@@ -56,18 +57,18 @@ for text in process_sent:
 lmtzr = WordNetLemmatizer()
 stoplist = stopwords.words('english')
 
-process_sent = [
+process_episode = [
     [token for token in text if frequency[token] > 1 #and ordet optræder i over 25% af alle sætninger??
-    and frequency[token] < 10
+    #and frequency[token] < 10
     and token not in stoplist]
-    for text in process_sent
+    for text in process_episode
 ]
 
 
 #finally, lemmantize the tokens
 cleaned_sentences = [
     [lmtzr.lemmatize(word) for word in document if word not in stoplist]
-    for document in process_sent
+    for document in process_episode
 ]
 
 
