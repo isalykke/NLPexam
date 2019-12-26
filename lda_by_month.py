@@ -35,7 +35,6 @@ df["year"] = df["year"].astype('str')
 #create unique month to split by
 df['unique_month'] = df[['year', 'month']].apply('_'.join, axis=1)
 
-
 #create a list containing datasets split by unique_month to loop over:
 df_list = [df for _, df in df.groupby(df['unique_month'])]
 
@@ -124,7 +123,7 @@ def df_cleaner(df, cutoff):
     
     return df
 
-#we use the frequencies of informative words (windows: 11200) to determine the cutoffs for text cleaning
+#we use the frequencies of informative words (e.g. windows: 11200) to determine the cutoffs for text cleaning
 from collections import Counter 
 k = Counter(frequency) 
 
@@ -138,8 +137,7 @@ high = k.most_common(int(procentage*len(frequency)))
 high[-1]
 
 
-
-df = df_cleaner(df, 10)
+df = df_cleaner(df, 173)
 
 def lda_this_plz(df, num_lda_topics):
 
@@ -148,12 +146,17 @@ def lda_this_plz(df, num_lda_topics):
     dictionary = corpora.Dictionary(cleaned_episodes) #a mapping between words and their integer ids.
     corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
 
+    corpus2 = dictionary.doc2bow(cleaned_episodes[2])
+    corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
+
+
     #create lda model
-    lda = models.LdaMulticore(corpus1, id2word = dictionary, num_topics = num_lda_topics, workers = 8)
+    lda = models.LdaMulticore(corpus1, id2word = dictionary, num_topics = 20, workers = 8)
+    lda = models.LdaModel(corpus2, id2word = dictionary, num_topics = 20)
 
-    return list_of_ldas
+    return trained_models
 
-test = clean_n_lda(df_list[100], 20, 10) # test on one dataframe
+test = lda_this_plz(df_list[100], 20, 10) # test on one dataframe
 
 
 ###########################################################################################################
