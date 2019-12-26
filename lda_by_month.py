@@ -76,6 +76,7 @@ def word_cloud_func(lda):
     plt.margins(x=0, y=0)
     plt.tight_layout()
 
+
 #takes as input a dataframe and returns the same dataframe with a cleaned version of the episodes
 def df_cleaner(df, cutoff):
 
@@ -98,14 +99,17 @@ def df_cleaner(df, cutoff):
 
     #calculate the frequency of each word, save it in a dictionary of format {"word":n}
     frequency = defaultdict(int)
+    no_total_words = 0
+
     for text in process_episode:
         for token in text:
             frequency[token] += 1
+            no_total_words += 1
 
     #remove words that appear only once, as well as words in our stop list
     process_episode = [
         [token for token in text if frequency[token] > 1 #change this number to only include more informative words
-        and frequency[token] < cutoff
+        and frequency[token] <= cutoff 
         and token not in stoplist]
         for text in process_episode
     ]
@@ -119,6 +123,14 @@ def df_cleaner(df, cutoff):
 
     
     return df
+
+#we use the frequencies of informative words (windows: 11200, ) to determine the cutoffs for text cleaning
+from collections import Counter 
+k = Counter(frequency) 
+# Finding highest values 
+high = k.most_common(1000) 
+
+
 
 df = df_cleaner(df, 10)
 
