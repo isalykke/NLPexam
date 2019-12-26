@@ -163,7 +163,7 @@ def lda_this_plz(df, num_lda_topics):
 ############################################################################################################
 
 
-num_lda_topics = [5, 10, 20] #set number of topics to loop over (min 4 for wordcloud)
+num_lda_topics = [20] #set number of topics to loop over (min 4 for wordcloud)
 
 col_names = [name for name in df.columns] #make a list of the col names 
 col_names.append('clean_episode')
@@ -175,11 +175,15 @@ for num in range(len(num_lda_topics)):
 
     new_df = pd.DataFrame(columns = col_names) #create a new dataframe with same col names to have all topics pr month
 
+    model_list = []
+
     #loop over each df (one pr unique episode) and find topics
     for df in df_list:
 
         clean_df = df_cleaner(df, 56)
         lda = lda_this_plz(clean_df, num_lda_topics[num])
+
+        model_list.append(lda)
 
         #lda = clean_n_lda(df, num_lda_topics[num], 10) #perform lda on each month
         #print(len(df))
@@ -191,6 +195,8 @@ for num in range(len(num_lda_topics)):
         new_df = pd.concat([new_df, df]) #concatenate all the dfs with topics to one new df
 
     new_df.to_csv(f'lda_with_{num_lda_topics[num]}topics.csv')
+
+    print(model_list)
 
 
 
