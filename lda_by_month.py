@@ -124,11 +124,18 @@ def df_cleaner(df, cutoff):
     
     return df
 
-#we use the frequencies of informative words (windows: 11200, ) to determine the cutoffs for text cleaning
+#we use the frequencies of informative words (windows: 11200) to determine the cutoffs for text cleaning
 from collections import Counter 
 k = Counter(frequency) 
-# Finding highest values 
-high = k.most_common(1000) 
+
+#inspect values manually
+high = k.most_common(100)
+high
+
+# Finding percentage values for cutoffs
+procentage = 0.25
+high = k.most_common(int(procentage*len(frequency)))
+high[-1]
 
 
 
