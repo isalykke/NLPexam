@@ -123,6 +123,7 @@ def df_cleaner(df, cutoff):
     
     return df
 
+'''
 #we use the frequencies of informative words (e.g. windows: 11200) to determine the cutoffs for text cleaning
 from collections import Counter 
 k = Counter(frequency) 
@@ -135,9 +136,10 @@ high
 procentage = 0.25
 high = k.most_common(int(procentage*len(frequency)))
 high[-1]
+'''
 
 
-df = df_cleaner(df, 173)
+#df = df_cleaner(df, 173)
 
 def lda_this_plz(df, num_lda_topics):
 
@@ -155,15 +157,13 @@ def lda_this_plz(df, num_lda_topics):
 
     return lda
 
-test = lda_this_plz(df_list[100], 20, 10) # test on one dataframe
-
 
 ###########################################################################################################
 ############################## LOOP OVER ALL EPISODES #############################################
 ############################################################################################################
 
 
-num_lda_topics = [20] #set number of topics to loop over (min 4 for wordcloud)
+num_lda_topics = [5, 10, 20] #set number of topics to loop over (min 4 for wordcloud)
 
 col_names = [name for name in df.columns] #make a list of the col names 
 col_names.append('clean_episode')
