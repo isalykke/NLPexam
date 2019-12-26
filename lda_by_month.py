@@ -76,7 +76,8 @@ def word_cloud_func(lda):
     plt.margins(x=0, y=0)
     plt.tight_layout()
 
-def clean_n_lda(df, num_lda_topics, cutoff):
+#takes as input a dataframe and returns the same dataframe with a cleaned version of the episodes
+def df_cleaner(df, cutoff):
 
     ############# TEXT CLEANUP ################
 
@@ -109,21 +110,29 @@ def clean_n_lda(df, num_lda_topics, cutoff):
         for text in process_episode
     ]
 
-    cleaned_sentences = [
+    cleaned_episodes = [
         [lmtzr.lemmatize(word) for word in document if word not in stoplist]
         for document in process_episode
     ]
-    
-    
-    ############# LDA MODEL ################
 
-    dictionary = corpora.Dictionary(cleaned_sentences) #a mapping between words and their integer ids.
-    corpus1 = [dictionary.doc2bow(sent) for sent in cleaned_sentences]
+    df['clean_episode'] = [" ".join(episode) for episode in cleaned_episodes]
+
+    
+    return df
+
+df = df_cleaner(df, 10)
+
+def lda_this_plz(df, num_lda_topics):
+
+    cleaned_episodes = [token.split() for token in df['clean_episode']]
+
+    dictionary = corpora.Dictionary(cleaned_episodes) #a mapping between words and their integer ids.
+    corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
 
     #create lda model
-    lda = models.LdaMulticore(corpus1, id2word=dictionary, num_topics = num_lda_topics, workers = 8)
+    lda = models.LdaMulticore(corpus1, id2word = dictionary, num_topics = num_lda_topics, workers = 8)
 
-    return lda
+    return list_of_ldas
 
 test = clean_n_lda(df_list[100], 20, 10) # test on one dataframe
 

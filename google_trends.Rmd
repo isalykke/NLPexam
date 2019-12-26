@@ -1,0 +1,62 @@
+---
+title: "google trends"
+author: "Isa Lykke Hansen"
+date: "12/7/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+
+kindle <- read.csv("multiTimeline (1).csv", header = TRUE, skip = 1) %>% 
+  mutate(month = ymd(paste0(Måned, "-01"))) %>%
+  mutate(kindle_value = as.numeric(as.character(kindle...USA.))) %>% 
+  mutate(kindle_value = if_else(is.na(kindle_value), 0, kindle_value))
+
+
+
+kindleplot <- ggplot(kindle, aes(month, kindle_value)) +
+  geom_line() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=-45)) +
+  scale_x_date(date_breaks = "4 month", date_labels = "%y-%m") +
+  labs(title = "Search popularity by month for 'kindle' in the US since 2004", y = "relative # google searches")
+
+kindleplot
+
+```
+
+
+```{r}
+bitcoin <- read.csv("multiTimeline.csv", header = TRUE, skip = 1) %>% 
+  mutate(month = ymd(paste0(Måned, "-01"))) %>%
+  mutate(bit_value = as.numeric(as.character(bitcoins...USA.))) %>% 
+  mutate(bit_value  = if_else(is.na(bit_value), 0, bit_value))
+
+full_data = full_join(kindle, bitcoin)
+
+
+bitplot <- ggplot(bitcoin, aes(month, bit_value )) +
+  geom_line() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1, size = 16),
+        axis.text.y = element_text(hjust = 1, size = 16),
+        plot.title = element_text(size = 28, face = 'bold'),
+        axis.title.x = element_text(size = 20, face = 'bold'),
+        axis.title.y = element_text(size = 20, face = 'bold')) +
+  scale_x_date(date_breaks = "12 month", date_labels = "%Y-%m") +
+  geom_ribbon(aes(ymin = 0, ymax = bit_value), fill = "#548235", color = "#548235", alpha = 0.6) +
+  geom_segment(aes(x = as.Date('2011-05-01'), 
+                   xend = as.Date('2010-03-01'), 
+                   y = 5, 
+                   yend = 25),
+               arrow = arrow(length=unit(0.30,"cm"), ends="first", type = "open")) +
+  #geom_vline(xintercept = as.Date('2011-05-01')) +
+  labs(title = "Search Popularity for 'bitcoins' in the US Since 2004", y = "Relative # Google Searches", x = "Month")
+  
+bitplot
+
+```
+

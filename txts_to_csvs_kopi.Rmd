@@ -1,0 +1,117 @@
+---
+title: "Create .csvs from .txts"
+author: "Isa Lykke Hansen"
+date: "11/1/2019"
+output: html_document
+---
+
+This function takes in a bunch of txt files and outputs a cleaned up csv file with speach turns as rows
+It also finds and adds metadata and lastly saves to one big csv file
+```{r setup, include=FALSE}
+
+library(tidyverse)
+`%ni%` = Negate(`%in%`)
+
+txts <- list.files(path = "./txts/", pattern = "*.txt")
+
+
+text <- read.table(paste0("./txts/", "snsn-001.txt"),
+                     #sep = "\n",
+                     quote = "",
+                     comment.char = "",
+                     encoding="latin1")
+
+read_and_preprocess <- function(txt){
+  
+  n = 1
+
+  #open the txt file
+  text <- read.table(paste0("./txts/", txt),
+                     #sep = "\n",
+                     quote = "",
+                     comment.char = "",
+                     encoding="latin1")
+  
+  #find all metadata
+  speakers <- text[grepl("SPEAKERS|HOSTS", text$V1),]
+  speakers <- sub(".*:\t", "", speakers)
+
+  date <- lubridate::mdy(as.character(text[grepl("DATE", text$V1, fixed = TRUE),][[1]]))
+
+  title <- as.character(text[grepl("TITLE", text$V1, fixed = TRUE),][[1]])
+  title <- sub(".*?:", "", title)
+
+  episode <- str_extract(as.character(text[grepl("EPISODE", text$V1, fixed = TRUE),][[1]]), "[0-9]+")
+
+  description <- as.character(text[grepl("DESCRIPTION", text$V1, fixed = TRUE),][[1]])
+  description <- sub(".*: ", "", description)
+
+  #current_speaker <- str_extract(text$V1, "[A-Z]+")
+  
+  is_copyright <- grepl("Copyright (c)", text$V1, fixed = TRUE)
+
+  #create a speaker_list (for filtering data)
+  speaker_list = tibble::enframe(as.vector(unlist(str_split(toupper(speakers), " & "))), name = NULL, value = "speaker")
+  speaker_list[["alias"]] <- str_extract(speaker_list[["speaker"]], "[A-Z]*")
+  speaker_list <- speaker_list %>% tidyr::gather(key = "col", value = "speaker", 1:2)
+  speaker_list <- speaker_list[, "speaker"]
+  
+  name_regex <- paste(speaker_list[["speaker"]], collapse="|")
+  cleaned_text <- text %>% 
+    mutate(V1 = gsub(name_regex, "", V1),
+           V1 = str_replace(V1,"^:\\W*", ""))
+  
+  #add all metadata and speakerdata to the dataframe:
+  text <- mutate(text,
+                 current_speaker = current_speaker,
+                 speakers = speakers,
+                 date = date,
+                 title = title,
+                 episode = episode,
+                 description = description,
+                 copyright = is_copyright)
+  
+  #loop over dataframe to find speaker in cases of longer monologues (e.i take the previous)
+  for (row in text$current_speaker) {
+    
+    if (current_speaker[n] %ni% speaker_list$speaker & n > 1) {
+      current_speaker[n] = current_speaker[n-1]
+    }
+    
+    monologues = data.frame(current_speaker)
+    
+    n = n+1
+  }
+  
+  #add new info to the dataframe (updated speaker column + cleaned utterance) + filter by speaker + copyright
+  text <- text %>% 
+    mutate(real_speaker = monologues$current_speaker, #add the real speaker
+           utterance = cleaned_text$V1,
+           year = lubridate::year(date),
+           month = lubridate::month(date)) %>% #... and the cleaned utterances
+    filter(real_speaker %in% speaker_list[["speaker"]]) %>% #filter out rows that are not utterances
+    filter(row_number() <= which(grepl("Copyright (c)", V1, fixed = TRUE))) %>% #filter out all rows *after* copyright
+    filter(copyright != TRUE) %>% #lastly filter out the copyright row itself
+    select(-c(copyright, V1, current_speaker)) #remove some columns we don't want in the finished dataset
+}
+  
+test <- read_and_preprocess(txts[199:204])
+
+ all_preprocessed <- plyr::ldply(txts, function(txt){
+   tryCatch({
+     read_and_preprocess(txt)
+   }, error = function(e){
+       print(paste0("Failed: ", txt))
+       return(NULL)
+     }
+   )
+ }) %>%
+  dplyr::as_tibble()
+
+write.csv(all_preprocessed, file = "preprocessed_txts.csv", fileEncoding = "utf8")
+
+
+
+
+
+```

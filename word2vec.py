@@ -59,13 +59,16 @@ cleaned_sentences = [
 
 #make a word2vec model with the podcasts
 from gensim.models import Word2Vec
-security_now_model = Word2Vec(cleaned_sentences, size=100, window=5, min_count=3, workers=4, sg = 1)
+from matplotlib import pyplot as plt
+
+security_now_model = Word2Vec(cleaned_sentences, size=100, window=5, min_count=3, workers=8, sg = 1)
 
 print(security_now_model['girl'])
-print(security_now_model.wv.most_similar('leash'))
+print(security_now_model.wv.most_similar('girl'))
 
 #from https://web.stanford.edu/class/cs224n/materials/Gensim%20word%20vector%20visualization.html?fbclid=IwAR3aqPPGlCN5bNpN0lR_wR1nErLxCdPiksmlJIHmRtaqjzUa7Pjj7RNsoO0
 from sklearn.decomposition import PCA
+
 def display_pca_scatterplot(model, words=None, sample=0):
     if words == None:
         if sample > 0:
@@ -83,7 +86,6 @@ def display_pca_scatterplot(model, words=None, sample=0):
         plt.text(x+0.05, y+0.05, word)
 
 
-display_pca_scatterplot(security_now_model, 
-                        ['uber', 'computer', 'bitcoin', 'crypto', 'security'])
+display_pca_scatterplot(security_now_model, ['uber', 'computer', 'bitcoin', 'crypto', 'security'])
 
-display_pca_scatterplot(security_now_model, sample = )
+display_pca_scatterplot(security_now_model, sample = 100)

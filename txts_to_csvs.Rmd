@@ -8,7 +8,6 @@ output: html_document
 This function takes in a bunch of txt files and outputs a cleaned up csv file with speach turns as rows
 It also finds and adds metadata and lastly saves to one big csv file
 ```{r setup, include=FALSE}
-
 library(tidyverse)
 `%ni%` = Negate(`%in%`)
 
@@ -102,5 +101,22 @@ test <- read_and_preprocess(txts[199])
   dplyr::as_tibble()
 
 write.csv(all_preprocessed, file = "preprocessed_txts.csv", fileEncoding = "utf8")
+```
+
+The following block takes the preprocessed data in csv form and transforms it to a dataset that has one full episode pr row instead of one speaker utterance per row. This is saved as a new csv
+
+This is quite possibly the most computationally heavy way to arrive at the result, but hey, if it works it works.
+
+```{r setup, include=FALSE}
+
+preprocessed <- read.csv("preprocessed_txts.csv")
+
+pre2 <- preprocessed %>%
+  group_by(episode) %>% 
+  mutate(whole_episode = paste0(utterance, collapse = " ")) #create a new column containing all utterances strung together (aka whole episode)
+
+pre3 <- distinct(pre2, episode, .keep_all = TRUE) #keep one column pr episode
+
+write.csv(pre3, file = "preprocessed_txts_full_episodes.csv", fileEncoding = "utf8")
 
 ```
