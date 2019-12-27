@@ -161,9 +161,9 @@ def coherence_maker(lda, dictionary, clean_episodes):
 ############################################################################################################
 
 
-num_lda_topics = [5, 50] #set number of topics to loop over (min 4 for wordcloud)
+num_lda_topics = [5, 10, 25, 50] #set number of topics to loop over (min 4 for wordcloud)
 
-cutoffs = [19, 56]
+cutoffs = [10, 19, 56]
 
 col_names = [name for name in df.columns] #make a list of the col names 
 col_names.append('clean_episode')
@@ -193,8 +193,6 @@ for num in range(len(num_lda_topics)):
 
             #perform the lda model and calculate coherence scores
             lda = lda_maker(num_lda_topics[num], dictionary, corpus1)
-
-            model_list.append(lda)
         
             lda_coherence = coherence_maker(lda, dictionary, cleaned_episodes)
 
@@ -202,10 +200,10 @@ for num in range(len(num_lda_topics)):
             #plt.savefig(fname = f"wordclouds/word_cloud_for{df['unique_month'][0:1]}.png")
 
             #create a tupple with outcomes
-            episode_stats = (episode, num_lda_topics[num], cutoffs[cut], lda_coherence.get_coherence(), lda)
+            episode_stats = (episode, num_lda_topics[num], cutoffs[cut], lda_coherence.get_coherence())#, lda)
             results.append(episode_stats)
 
-            print(f'episode:{episode}, topics:{num_lda_topics[num]}, cutoff: {cutoffs[cut]}, coherence: {lda_coherence.get_coherence()}')
+            print(f'episode:{episode_stats[0]}, topics:{episode_stats[1]}, cutoff: {episode_stats[2]}, coherence: {episode_stats[3]}')
 
             #append the topics to the df
             df['topics'] = [lda.show_topics(num_lda_topics[num])] * len(df) #append the topics to the current df
@@ -214,27 +212,29 @@ for num in range(len(num_lda_topics)):
         new_df.to_csv(f'lda_with_{num_lda_topics[num]}topics_and_cutoff{cutoffs[cut]}.csv')
 
 
-    print(num_lda_topics[num])
-    print(model_list)
-    print(coherence_values)
-    print(mean_coherence_value)
-
-
 #plot coherence values
 
 #mean_coherence_value = statistics.mean(coherence_values)
 
-'''
+results_df = pd.DataFrame(results, columns = ["episode", "topics", "cut", "coherence"])
+
+
+
+summary_df = results_df.groupby(['cut', "topics"]).mean()
+
 co_list = []
 
 for i in results:
-    print(i[3])
+    if i[2] 
+    print()
+
+
     co_list.append((i[1], i[2], i[3]))
 
 plt.scatter(co_list[0], co_list[1])
 plt.xlabel("?")
 plt.ylabel("Mean Coherence Score")
-'''
+
 
 
 
