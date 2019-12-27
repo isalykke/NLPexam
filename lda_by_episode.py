@@ -43,6 +43,10 @@ df_list = [df for _, df in df.groupby(df['episode'])]
 stoplist = stopwords.words('english')
 lmtzr = WordNetLemmatizer()
 
+#clean df dictionary
+clean_dfs = {}
+
+
 def word_cloud_func(lda):
 
     cols = [color for name, color in mcolors.TABLEAU_COLORS.items()]
@@ -78,49 +82,57 @@ def word_cloud_func(lda):
 #takes as input a dataframe and returns the same dataframe with a cleaned version of the episodes
 def df_cleaner(df, cutoff):
 
-    ############# TEXT CLEANUP ################
+    episode_name = df.iloc[0]['episode']
 
-    episodes = list(df.whole_episode)
-    # RE removing words with length <2 characters
-    process_episode = list(filter(None, [re.sub(r'\b\w{1,3}\b','', x) for x in episodes])) 
-    # RE removing URLs
-    process_episode = list(filter(None, [re.sub(r'http\S+','', x) for x in process_episode]))
-    # RE removing numbers
-    process_episode = list(filter(None, [re.sub(r'\d+','', x) for x in process_episode]))
-    # RE removing punctuation
-    process_episode = list(filter(None, [re.sub(r'[\>\€\.\,\'\"\!\?\:\;\-\_\=\(\)\|\*\@\#\&\$\"\/\%\+]+','', x) for x in process_episode]))
-    # RE removing non-ASCII characters
-    process_episode = list(filter(None, [re.sub(r'[^\x00-\x7F]+','', x) for x in process_episode]))
+    if episode_name in clean_dfs:
+        return clean_dfs[episode_name]
 
-    #make a list of lists of utterances
-    process_episode = [[word for word in document.lower().split()] for document in process_episode]
+    else:
 
-    #calculate the frequency of each word, save it in a dictionary of format {"word":n}
-    frequency = defaultdict(int)
-    no_total_words = 0
+        ############# TEXT CLEANUP ################
 
-    for text in process_episode:
-        for token in text:
-            frequency[token] += 1
-            no_total_words += 1
+        episodes = list(df.whole_episode)
+        # RE removing words with length <2 characters
+        process_episode = list(filter(None, [re.sub(r'\b\w{1,3}\b','', x) for x in episodes])) 
+        # RE removing URLs
+        process_episode = list(filter(None, [re.sub(r'http\S+','', x) for x in process_episode]))
+        # RE removing numbers
+        process_episode = list(filter(None, [re.sub(r'\d+','', x) for x in process_episode]))
+        # RE removing punctuation
+        process_episode = list(filter(None, [re.sub(r'[\>\€\.\,\'\"\!\?\:\;\-\_\=\(\)\|\*\@\#\&\$\"\/\%\+]+','', x) for x in process_episode]))
+        # RE removing non-ASCII characters
+        process_episode = list(filter(None, [re.sub(r'[^\x00-\x7F]+','', x) for x in process_episode]))
 
-    #remove words that appear only once, more than cutoff, as well as words in our stop list
-    process_episode = [
-        [token for token in text if frequency[token] > 1
-        and frequency[token] <= cutoff 
-        and token not in stoplist]
-        for text in process_episode
-    ]
+        #make a list of lists of utterances
+        process_episode = [[word for word in document.lower().split()] for document in process_episode]
 
-    cleaned_episodes = [
-        [lmtzr.lemmatize(word) for word in document if word not in stoplist]
-        for document in process_episode
-    ]
+        #calculate the frequency of each word, save it in a dictionary of format {"word":n}
+        frequency = defaultdict(int)
+        no_total_words = 0
 
-    df['clean_episode'] = [" ".join(episode) for episode in cleaned_episodes]
+        for text in process_episode:
+            for token in text:
+                frequency[token] += 1
+                no_total_words += 1
 
-    
-    return df
+        #remove words that appear only once, more than cutoff, as well as words in our stop list
+        process_episode = [
+            [token for token in text if frequency[token] > 1
+            and frequency[token] <= cutoff 
+            and token not in stoplist]
+            for text in process_episode
+        ]
+
+        cleaned_episodes = [
+            [lmtzr.lemmatize(word) for word in document if word not in stoplist]
+            for document in process_episode
+        ]
+
+        df['clean_episode'] = [" ".join(episode) for episode in cleaned_episodes]
+        
+        clean_dfs[episode_name] = df
+
+        return df
 
 '''
 #we use the frequencies of informative words (e.g. windows: 11200) to determine the cutoffs for text cleaning
@@ -137,8 +149,6 @@ high = k.most_common(int(procentage*len(frequency)))
 high[-1]
 '''
 
-
-#df = df_cleaner(df, 173)
 
 def lda_maker(num_lda_topics, dictionary, corpus):
 
@@ -170,6 +180,7 @@ col_names.append('clean_episode')
 col_names.append('topics') #append "topics" to that list
 
 results = []
+
 
 #loop over each number of topics
 for num in range(len(num_lda_topics)):
