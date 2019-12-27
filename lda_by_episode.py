@@ -161,9 +161,9 @@ def coherence_maker(lda, dictionary, clean_episodes):
 ############################################################################################################
 
 
-num_lda_topics = [5, 10, 25, 50] #set number of topics to loop over (min 4 for wordcloud)
+num_lda_topics = [5, 10, 15, 20, 25, 30, 35, 50] #set number of topics to loop over (min 4 for wordcloud)
 
-cutoffs = [10, 19, 56]
+cutoffs = [11200, 56, 10]
 
 col_names = [name for name in df.columns] #make a list of the col names 
 col_names.append('clean_episode')
@@ -214,26 +214,22 @@ for num in range(len(num_lda_topics)):
 
 #plot coherence values
 
-#mean_coherence_value = statistics.mean(coherence_values)
-
 results_df = pd.DataFrame(results, columns = ["episode", "topics", "cut", "coherence"])
-
-
-
 summary_df = results_df.groupby(['cut', "topics"]).mean()
-
-co_list = []
-
-for i in results:
-    if i[2] 
-    print()
+del summary_df['episode']
 
 
-    co_list.append((i[1], i[2], i[3]))
 
-plt.scatter(co_list[0], co_list[1])
-plt.xlabel("?")
-plt.ylabel("Mean Coherence Score")
+for cut in cutoffs:
+    data = summary_df.loc[cut]
+
+    plt.plot(data)
+
+    plt.xlabel("Number of Topics")
+    plt.ylabel("Mean Coherence Score")
+    plt.legend(cutoffs)
+
+
 
 
 
