@@ -38,14 +38,12 @@ df["year"] = df["year"].astype('str')
 #create unique month to split by
 df['unique_month'] = df[['year', 'month']].apply('_'.join, axis=1)
 
-#create a list containing datasets split by unique_month to loop over:
+#create a list containing datasets split by episode to loop over:
 df_list = [df for _, df in df.groupby(df['episode'])]
 
 #prepare stoplist and lemmatizer
 stoplist = stopwords.words('english')
 lmtzr = WordNetLemmatizer()
-
-
 
 def word_cloud_func(lda):
 
@@ -165,7 +163,9 @@ def coherence_maker(lda, dictionary, clean_episodes):
 ############################################################################################################
 
 
-num_lda_topics = [5, 10, 15, 25, 50] #set number of topics to loop over (min 4 for wordcloud)
+num_lda_topics = [5, 50] #set number of topics to loop over (min 4 for wordcloud)
+
+cutoffs = [19, 56]
 
 col_names = [name for name in df.columns] #make a list of the col names 
 col_names.append('clean_episode')
@@ -175,40 +175,49 @@ col_names.append('topics') #append "topics" to that list
 #loop over each number of topics
 for num in range(len(num_lda_topics)):
 
-    new_df = pd.DataFrame(columns = col_names) #create a new dataframe with same col names to have all topics pr month
+    for cut in range(len(cutoffs)):
 
-    model_list = []
-    coherence_values = []
+        new_df = pd.DataFrame(columns = col_names) #create a new dataframe with same col names to have all topics pr month
 
-    #loop over each df (one pr unique episode) and find topics
-    for df in df_list[1:300]:
+        model_list = []
+        coherence_values = []
+        results = []
 
-        #clean the episodes once for every dataframe and create a dictionary+corpus for lda
-        clean_df = df_cleaner(df, 19)
+        #loop over each df (one pr unique episode and cutoff) and find topics
+        for df in df_list[1:30]:
+
+            #clean the episodes once for every dataframe and create a dictionary+corpus for lda
+            clean_df = df_cleaner(df, cutoffs[cut])
      
-        cleaned_episodes = [token.split() for token in clean_df['clean_episode']] #we need to split the cleaned words into a list for lda
+            cleaned_episodes = [token.split() for token in clean_df['clean_episode']] #we need to split the cleaned words into a list for lda
 
-        dictionary = corpora.Dictionary(cleaned_episodes) #a mapping between words and their integer ids.
-        corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
+            dictionary = corpora.Dictionary(cleaned_episodes) #a mapping between words and their integer ids.
+            corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
 
-        #perform the lda model and calculate coherence scores
-        lda = lda_maker(num_lda_topics[num], dictionary, corpus1)
+            #perform the lda model and calculate coherence scores
+            lda = lda_maker(num_lda_topics[num], dictionary, corpus1)
 
-        model_list.append(lda)
+            model_list.append(lda)
         
-        lda_coherence = coherence_maker(lda, dictionary, cleaned_episodes)
+            lda_coherence = coherence_maker(lda, dictionary, cleaned_episodes)
 
-        coherence_values.append(lda_coherence.get_coherence())
-        mean_coherence_value = statistics.mean(coherence_values)
+            coherence_values.append(lda_coherence.get_coherence())
+            mean_coherence_value = statistics.mean(coherence_values)
 
-        #wordcloud = word_cloud_func(lda)
-        #plt.savefig(fname = f"wordclouds/word_cloud_for{df['unique_month'][0:1]}.png")
+            #wordcloud = word_cloud_func(lda)
+            #plt.savefig(fname = f"wordclouds/word_cloud_for{df['unique_month'][0:1]}.png")
 
-        #append the topics to the df
-        df['topics'] = [lda.show_topics(num_lda_topics[num])] * len(df) #append the topics to the current df
-        new_df = pd.concat([new_df, df]) #concatenate all the dfs with topics to one new df
+            #create a tupple with outcomes
+            episode_stats = (df['episode'], cutoffs[cut], num_lda_topics[num], lda, mean_coherence_value)
+            print(episode_stats)
 
-    new_df.to_csv(f'lda_with_{num_lda_topics[num]}topics.csv')
+            #append the topics to the df
+            df['topics'] = [lda.show_topics(num_lda_topics[num])] * len(df) #append the topics to the current df
+            new_df = pd.concat([new_df, df]) #concatenate all the dfs with topics to one new df
+
+        new_df.to_csv(f'lda_with_{num_lda_topics[num]}topics_and_cutoff{cutoffs[cut]}.csv')
+        
+        #results.append(episode_stats)
 
     print(num_lda_topics[num])
     print(model_list)
