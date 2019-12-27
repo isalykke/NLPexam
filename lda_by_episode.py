@@ -5,13 +5,17 @@ from nltk.stem import WordNetLemmatizer
 
 import gensim
 from gensim import corpora, models, similarities
+from gensim.models.coherencemodel import CoherenceModel
 
 import _collections
 from _collections import defaultdict
 
 import pandas as pd
 import numpy as np 
-import re,string
+import re, string, statistics
+
+import tqdm
+from tqdm
 
 from matplotlib import pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
@@ -105,9 +109,9 @@ def df_cleaner(df, cutoff):
             frequency[token] += 1
             no_total_words += 1
 
-    #remove words that appear only once, as well as words in our stop list
+    #remove words that appear only once, more than cutoff, as well as words in our stop list
     process_episode = [
-        [token for token in text if frequency[token] > 1 #change this number to only include more informative words
+        [token for token in text if frequency[token] > 1
         and frequency[token] <= cutoff 
         and token not in stoplist]
         for text in process_episode
@@ -133,7 +137,7 @@ high = k.most_common(100)
 high
 
 # Finding percentage values for cutoffs
-procentage = 0.25
+procentage = 0.19
 high = k.most_common(int(procentage*len(frequency)))
 high[-1]
 '''
@@ -141,7 +145,7 @@ high[-1]
 
 #df = df_cleaner(df, 173)
 
-def lda_this_plz(df, num_lda_topics):
+def lda_maker(df, num_lda_topics):
 
     cleaned_episodes = [token.split() for token in df['clean_episode']]
 
@@ -152,10 +156,23 @@ def lda_this_plz(df, num_lda_topics):
     #corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
 
 
-    #create lda model
+    #create lda model and coherence model
     lda = models.LdaMulticore(corpus1, id2word = dictionary, num_topics = num_lda_topics, workers = 8)
 
     return lda
+
+
+
+def coherence_maker(df, lda):
+
+    cleaned_episodes = [token.split() for token in df['clean_episode']]
+
+    dictionary = corpora.Dictionary(cleaned_episodes) #a mapping between words and their integer ids.
+    corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
+
+    lda_coherence = gensim.models.CoherenceModel(model = lda, texts = cleaned_episodes, dictionary = dictionary, coherence = 'c_v')
+
+    return lda_coherence
 
 
 ###########################################################################################################
@@ -163,7 +180,7 @@ def lda_this_plz(df, num_lda_topics):
 ############################################################################################################
 
 
-num_lda_topics = [20] #set number of topics to loop over (min 4 for wordcloud)
+num_lda_topics = [5] #set number of topics to loop over (min 4 for wordcloud)
 
 col_names = [name for name in df.columns] #make a list of the col names 
 col_names.append('clean_episode')
@@ -176,17 +193,19 @@ for num in range(len(num_lda_topics)):
     new_df = pd.DataFrame(columns = col_names) #create a new dataframe with same col names to have all topics pr month
 
     model_list = []
+    coherence_values = []
 
     #loop over each df (one pr unique episode) and find topics
     for df in df_list:
 
-        clean_df = df_cleaner(df, 56)
-        lda = lda_this_plz(clean_df, num_lda_topics[num])
+        clean_df = df_cleaner(df, 19)
+        lda = lda_maker(clean_df, num_lda_topics[num])
+        lda_coherence = coherence_maker(clean_df, lda)s
+        
 
         model_list.append(lda)
+        coherence_values.append(lda_coherence.get_coherence())
 
-        #lda = clean_n_lda(df, num_lda_topics[num], 10) #perform lda on each month
-        #print(len(df))
         #wordcloud = word_cloud_func(lda)
         #plt.savefig(fname = f"wordclouds/word_cloud_for{df['unique_month'][0:1]}.png")
 
@@ -197,6 +216,7 @@ for num in range(len(num_lda_topics)):
     new_df.to_csv(f'lda_with_{num_lda_topics[num]}topics.csv')
 
     print(model_list)
+    print(coherence_values)
 
 
 
