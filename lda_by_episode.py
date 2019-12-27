@@ -14,8 +14,6 @@ import pandas as pd
 import numpy as np 
 import re, string, statistics
 
-from tqdm import tqdm
-
 from matplotlib import pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
 import matplotlib.colors as mcolors
@@ -171,6 +169,7 @@ col_names = [name for name in df.columns] #make a list of the col names
 col_names.append('clean_episode')
 col_names.append('topics') #append "topics" to that list
 
+results = []
 
 #loop over each number of topics
 for num in range(len(num_lda_topics)):
@@ -179,9 +178,9 @@ for num in range(len(num_lda_topics)):
 
         new_df = pd.DataFrame(columns = col_names) #create a new dataframe with same col names to have all topics pr month
 
+
         model_list = []
         coherence_values = []
-        results = []
 
         #loop over each df (one pr unique episode and cutoff) and find topics
         for df in df_list[0:5]:
@@ -204,7 +203,6 @@ for num in range(len(num_lda_topics)):
             lda_coherence = coherence_maker(lda, dictionary, cleaned_episodes)
 
             coherence_values.append(lda_coherence.get_coherence())
-            mean_coherence_value = statistics.mean(coherence_values)
 
             #wordcloud = word_cloud_func(lda)
             #plt.savefig(fname = f"wordclouds/word_cloud_for{df['unique_month'][0:1]}.png")
@@ -213,7 +211,7 @@ for num in range(len(num_lda_topics)):
             episode_stats = (episode, num_lda_topics[num], cutoffs[cut], mean_coherence_value, lda)
             results.append(episode_stats)
 
-            print(f'episode:{episode}, topics:{num_lda_topics[num]}, cutoff: {cutoffs[cut]}, mean coherence: {mean_coherence_value}')
+            print(f'episode:{episode}, topics:{num_lda_topics[num]}, cutoff: {cutoffs[cut]}, coherence: {lda_coherence.get_coherence()}')
 
             #append the topics to the df
             df['topics'] = [lda.show_topics(num_lda_topics[num])] * len(df) #append the topics to the current df
@@ -221,10 +219,26 @@ for num in range(len(num_lda_topics)):
 
         new_df.to_csv(f'lda_with_{num_lda_topics[num]}topics_and_cutoff{cutoffs[cut]}.csv')
 
+        mean_coherence_value = statistics.mean(coherence_values)
+
     print(num_lda_topics[num])
     print(model_list)
     print(coherence_values)
     print(mean_coherence_value)
+
+
+#plot coherence values
+'''
+co_list = []
+
+for i in results:
+    print(i[3])
+    co_list.append((i[1], i[2], i[3]))
+
+plt.scatter(co_list[0], co_list[1])
+plt.xlabel("?")
+plt.ylabel("Mean Coherence Score")
+'''
 
 
 
