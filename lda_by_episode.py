@@ -14,8 +14,7 @@ import pandas as pd
 import numpy as np 
 import re, string, statistics
 
-import tqdm
-from tqdm
+from tqdm import tqdm
 
 from matplotlib import pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
@@ -145,31 +144,17 @@ high[-1]
 
 #df = df_cleaner(df, 173)
 
-def lda_maker(df, num_lda_topics):
+def lda_maker(num_lda_topics, dictionary, corpus):
 
-    cleaned_episodes = [token.split() for token in df['clean_episode']]
-
-    dictionary = corpora.Dictionary(cleaned_episodes) #a mapping between words and their integer ids.
-    corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
-
-    #corpus2 = dictionary.doc2bow(cleaned_episodes[2])
-    #corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
-
-
-    #create lda model and coherence model
+    #create lda model 
     lda = models.LdaMulticore(corpus1, id2word = dictionary, num_topics = num_lda_topics, workers = 8)
 
     return lda
 
 
+def coherence_maker(lda, dictionary, clean_episodes):
 
-def coherence_maker(df, lda):
-
-    cleaned_episodes = [token.split() for token in df['clean_episode']]
-
-    dictionary = corpora.Dictionary(cleaned_episodes) #a mapping between words and their integer ids.
-    corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
-
+    #create coherence model
     lda_coherence = gensim.models.CoherenceModel(model = lda, texts = cleaned_episodes, dictionary = dictionary, coherence = 'c_v')
 
     return lda_coherence
@@ -180,7 +165,7 @@ def coherence_maker(df, lda):
 ############################################################################################################
 
 
-num_lda_topics = [5] #set number of topics to loop over (min 4 for wordcloud)
+num_lda_topics = [5, 10, 15, 25, 50] #set number of topics to loop over (min 4 for wordcloud)
 
 col_names = [name for name in df.columns] #make a list of the col names 
 col_names.append('clean_episode')
@@ -196,15 +181,25 @@ for num in range(len(num_lda_topics)):
     coherence_values = []
 
     #loop over each df (one pr unique episode) and find topics
-    for df in df_list:
+    for df in df_list[1:300]:
 
+        #clean the episodes once for every dataframe and create a dictionary+corpus for lda
         clean_df = df_cleaner(df, 19)
-        lda = lda_maker(clean_df, num_lda_topics[num])
-        lda_coherence = coherence_maker(clean_df, lda)s
-        
+     
+        cleaned_episodes = [token.split() for token in clean_df['clean_episode']] #we need to split the cleaned words into a list for lda
+
+        dictionary = corpora.Dictionary(cleaned_episodes) #a mapping between words and their integer ids.
+        corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
+
+        #perform the lda model and calculate coherence scores
+        lda = lda_maker(num_lda_topics[num], dictionary, corpus1)
 
         model_list.append(lda)
+        
+        lda_coherence = coherence_maker(lda, dictionary, cleaned_episodes)
+
         coherence_values.append(lda_coherence.get_coherence())
+        mean_coherence_value = statistics.mean(coherence_values)
 
         #wordcloud = word_cloud_func(lda)
         #plt.savefig(fname = f"wordclouds/word_cloud_for{df['unique_month'][0:1]}.png")
@@ -215,8 +210,10 @@ for num in range(len(num_lda_topics)):
 
     new_df.to_csv(f'lda_with_{num_lda_topics[num]}topics.csv')
 
+    print(num_lda_topics[num])
     print(model_list)
     print(coherence_values)
+    print(mean_coherence_value)
 
 
 
