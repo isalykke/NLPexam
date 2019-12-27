@@ -184,7 +184,9 @@ for num in range(len(num_lda_topics)):
         results = []
 
         #loop over each df (one pr unique episode and cutoff) and find topics
-        for df in df_list[1:30]:
+        for df in df_list[0:5]:
+
+            episode = df.iloc[0]['episode']
 
             #clean the episodes once for every dataframe and create a dictionary+corpus for lda
             clean_df = df_cleaner(df, cutoffs[cut])
@@ -208,16 +210,16 @@ for num in range(len(num_lda_topics)):
             #plt.savefig(fname = f"wordclouds/word_cloud_for{df['unique_month'][0:1]}.png")
 
             #create a tupple with outcomes
-            episode_stats = (df['episode'], cutoffs[cut], num_lda_topics[num], lda, mean_coherence_value)
-            print(episode_stats)
+            episode_stats = (episode, num_lda_topics[num], cutoffs[cut], mean_coherence_value, lda)
+            results.append(episode_stats)
+
+            print(f'episode:{episode}, topics:{num_lda_topics[num]}, cutoff: {cutoffs[cut]}, mean coherence: {mean_coherence_value}')
 
             #append the topics to the df
             df['topics'] = [lda.show_topics(num_lda_topics[num])] * len(df) #append the topics to the current df
             new_df = pd.concat([new_df, df]) #concatenate all the dfs with topics to one new df
 
         new_df.to_csv(f'lda_with_{num_lda_topics[num]}topics_and_cutoff{cutoffs[cut]}.csv')
-        
-        #results.append(episode_stats)
 
     print(num_lda_topics[num])
     print(model_list)
