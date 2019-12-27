@@ -161,7 +161,7 @@ def coherence_maker(lda, dictionary, clean_episodes):
 ############################################################################################################
 
 
-num_lda_topics = [5, 10, 15, 20, 25, 30, 35, 50] #set number of topics to loop over (min 4 for wordcloud)
+num_lda_topics = [5, 10, 15, 20, 25] #set number of topics to loop over (min 4 for wordcloud)
 
 cutoffs = [11200, 56, 10]
 
@@ -179,7 +179,7 @@ for num in range(len(num_lda_topics)):
         new_df = pd.DataFrame(columns = col_names) #create a new dataframe with same col names to have all topics pr month
 
         #loop over each df (one pr unique episode and cutoff) and find topics
-        for df in df_list[0:5]:
+        for df in df_list:
 
             episode = df.iloc[0]['episode']
 
@@ -196,11 +196,13 @@ for num in range(len(num_lda_topics)):
         
             lda_coherence = coherence_maker(lda, dictionary, cleaned_episodes)
 
+            perplexity = lda.log_perplexity(corpus1)
+
             #wordcloud = word_cloud_func(lda)
             #plt.savefig(fname = f"wordclouds/word_cloud_for{df['unique_month'][0:1]}.png")
 
             #create a tupple with outcomes
-            episode_stats = (episode, num_lda_topics[num], cutoffs[cut], lda_coherence.get_coherence())#, lda)
+            episode_stats = (episode, num_lda_topics[num], cutoffs[cut], lda_coherence.get_coherence(), perplexity, lda)
             results.append(episode_stats)
 
             print(f'episode:{episode_stats[0]}, topics:{episode_stats[1]}, cutoff: {episode_stats[2]}, coherence: {episode_stats[3]}')
@@ -212,22 +214,45 @@ for num in range(len(num_lda_topics)):
         new_df.to_csv(f'lda_with_{num_lda_topics[num]}topics_and_cutoff{cutoffs[cut]}.csv')
 
 
-#plot coherence values
+#plot coherence values and perplexity:
+#https://medium.com/analytics-vidhya/building-a-topic-modelling-for-images-using-lda-and-transfer-learning-e55fcde024c6
 
-results_df = pd.DataFrame(results, columns = ["episode", "topics", "cut", "coherence"])
-summary_df = results_df.groupby(['cut', "topics"]).mean()
-del summary_df['episode']
 
+results_df = pd.DataFrame(results, columns = ["episode", "topics", "cut", "coherence", "perplexity", "lda"])
+
+summary1 = results_df.groupby(['cut', "topics"]).mean()
+
+del summary1['episode']
+del summary1['perplexity']
 
 
 for cut in cutoffs:
-    data = summary_df.loc[cut]
+    data = summary1.loc[cut]
 
     plt.plot(data)
 
     plt.xlabel("Number of Topics")
     plt.ylabel("Mean Coherence Score")
     plt.legend(cutoffs)
+    plt.title("Mean Coherence Score as a Function of No of Topics")
+plt.show()
+
+
+summary2 = results_df.groupby(['cut', "topics"]).mean()
+
+del summary2['episode']
+del summary2['coherence']
+
+for cut in cutoffs:
+    data2 = summary2.loc[cut]
+
+    plt.plot(data2)
+
+    plt.xlabel("Number of Topics")
+    plt.ylabel("Mean Coherence Score")
+    plt.legend(cutoffs)
+    plt.title("Mean Perplexity Score as a Function of No of Topics")
+plt.show()
 
 
 
