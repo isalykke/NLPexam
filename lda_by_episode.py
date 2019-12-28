@@ -205,15 +205,15 @@ for num in range(len(num_lda_topics)):
             #perform the lda model and calculate coherence scores
             lda = lda_maker(num_lda_topics[num], dictionary, corpus1)
         
-            lda_coherence = coherence_maker(lda, dictionary, cleaned_episodes)
+            #lda_coherence = coherence_maker(lda, dictionary, cleaned_episodes)
 
-            perplexity = lda.log_perplexity(corpus1) #this should be pow(2, -(lda.log_perplexity(corpus1)))
+            #perplexity = lda.log_perplexity(corpus1) #this should be pow(2, -(lda.log_perplexity(corpus1)))
 
             #wordcloud = word_cloud_func(lda)
             #plt.savefig(fname = f"wordclouds/word_cloud_for{df['unique_month'][0:1]}.png")
 
             #create a tupple with outcomes
-            episode_stats = (episode, num_lda_topics[num], cutoffs[cut], lda_coherence.get_coherence(), perplexity, lda)
+            episode_stats = (episode, num_lda_topics[num], cutoffs[cut], lda) # lda_coherence.get_coherence(), perplexity, lda)
             best_results.append(episode_stats)
 
             print(f'episode:{episode_stats[0]}, topics:{episode_stats[1]}, cutoff: {episode_stats[2]}, coherence: {episode_stats[3]}')
@@ -280,9 +280,7 @@ for i in range(len(best_model)):
     print(my_topics)
     print("\n")
 
-3976 (ep 327)
-
-
+#create wordclouds for visual inspection of topics
 episodeno = results[3976+2190+2190+2190]
 model = episodeno[5]
 word_cloud_func(model, 5)
