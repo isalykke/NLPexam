@@ -59,18 +59,17 @@ stoplist = stopwords.words('english')
 
 process_episode = [
     [token for token in text if frequency[token] > 1 #and ordet optræder i over 25% af alle sætninger??
-    #and frequency[token] < 10
+    and frequency[token] <= 10
     and token not in stoplist]
     for text in process_episode
 ]
 
 
 #finally, lemmantize the tokens
-cleaned_sentences = [
+cleaned_episodes = [
     [lmtzr.lemmatize(word) for word in document if word not in stoplist]
     for document in process_episode
 ]
-
 
 
 ##########################################
@@ -81,15 +80,15 @@ import gensim
 from gensim import corpora, models, similarities
 
 #calculate frequencies
-dictionary = corpora.Dictionary(cleaned_sentences) #a mapping between words and their integer ids.
-corpus1 = [dictionary.doc2bow(sent) for sent in cleaned_sentences]
+dictionary = corpora.Dictionary(cleaned_episodes) #a mapping between words and their integer ids.
+corpus1 = [dictionary.doc2bow(episode) for episode in cleaned_episodes]
 
 
 # Do the LDA - you must choose number of topics
-total_topics = 20
-lda = models.LdaMulticore(corpus1, id2word=dictionary, num_topics = total_topics, workers = 8)
+total_topics = 100
+lda_all = models.LdaMulticore(corpus1, id2word=dictionary, num_topics = total_topics, workers = 8)
 
-lda.show_topics(total_topics,20)
+lda_all.show_topics(total_topics,100)
 
 
 ##########################################

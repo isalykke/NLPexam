@@ -13,9 +13,11 @@ import pandas as pd
 import numpy as np 
 import re,string
 
+%matplotlib inline
+
 data_all = pd.read_csv('preprocessed_txts_full_episodes.csv', encoding="utf8")
 
-data_all = data_all[300:320]
+#data_all = data_all[300:320]
 
 clean_dfs_dict = {}
 
@@ -96,9 +98,9 @@ def coherence_maker(lda, dictionary, clean_episodes):
 import gensim
 from gensim import corpora, models, similarities
 
-num_lda_topics = [20] #set number of topics to loop over (min 4 for wordcloud)
+num_lda_topics = [5, 10, 20, 25, 30, 50, 100, 150] #set number of topics to loop over (min 4 for wordcloud)
 
-cutoffs = [10]
+cutoffs = [10, 19, 56, 11200]
 
 
 for num in range(len(num_lda_topics)):
@@ -134,12 +136,28 @@ for num in range(len(num_lda_topics)):
         print(f'topics:{lda_stats[0]}, cutoff: {lda_stats[1]}, coherence: {lda_stats[2]}')
 
 
+#convert model selection parameters to csv file 
+csv_list = []
+
+for i in range(len(full_dataset_results)):
+
+    topics = full_dataset_results[i][0]
+    cut = full_dataset_results[i][1]
+    coherence = full_dataset_results[i][2]
+    perplexity = full_dataset_results[i][3]
+
+    tub = (topics, cut, coherence, perplexity)
+
+    csv_list.append(tub)
+
+model_selection = pd.DataFrame(csv_list, columns = ["topics", "cut", "coherence", "perplexity"])
+model_selection.to_csv('model_selection_all.csv')
+
+
 '''
-fix later 
+results_df = pd.DataFrame(full_dataset_results, columns = ["topics", "cut", "coherence", "perplexity", "lda", "corp", "dict"])
 
-results_df = pd.DataFrame(full_dataset_results, columns = ["topics", "cut", "coherence", "perplexity", "lda"])
-
-results_df = results_df.groupby(['cut'])
+results_df = results_df.groupby(['cut']).size().unstack(fill_value=0).plot()
 
 del results_df['lda']
 del results_df['perplexity']
@@ -157,28 +175,21 @@ plt.show()
 results_df.groupby(['cut']).plot(legend=True)
 '''
 
-#tretrieve by-document most prominent topics
-lda_model = full_dataset_results[0][4]
-corpus = full_dataset_results[0][5]
-dictionary = full_dataset_results[0][6]
+#retrieve by-document most prominent topics
+lda_model = full_dataset_results[24][4]
+corpus = full_dataset_results[24][5]
+dictionary = full_dataset_results[24][6]
 
 
 for i in range(len(corpus)):
+    print(i)
     print(lda_model.get_document_topics(corpus[i]))
     print(max(lda_model.get_document_topics(corpus[i]),key=lambda x:x[1]))
     print("\n")
 
 
-
-
-
-
-
-
-
-
-
-
+res = lda_model.get_document_topics(corpus[15])
+tops, probs = zip(*res[0])
 
 
 
@@ -191,8 +202,6 @@ import pyLDAvis.gensim
 
 panel = pyLDAvis.gensim.prepare(lda_model, corpus, dictionary, mds='TSNE')
 pyLDAvis.display(panel)
-
-%matplotlib inline
 
 
 def format_topics_sentences(ldamodel=None, corpus=corpus, texts=data):
@@ -228,6 +237,31 @@ df_dominant_topic.columns = ['Document_No', 'Dominant_Topic', 'Topic_Perc_Contri
 df_dominant_topic.head(10)
 
 plt.plot(df_dominant_topic['Topic_Perc_Contrib'])
+
+df_dominant_topic.plot(x ='Document_No', y='Topic_Perc_Contrib', kind = 'line')
+
+
+
+# Display setting to show more characters in column
+pd.options.display.max_colwidth = 100
+
+sent_topics_sorteddf_mallet = pd.DataFrame()
+sent_topics_outdf_grpd = df_topic_sents_keywords.groupby('Dominant_Topic')
+
+for i, grp in sent_topics_outdf_grpd:
+    sent_topics_sorteddf_mallet = pd.concat([sent_topics_sorteddf_mallet, 
+                                             grp.sort_values(['Perc_Contribution'], ascending=False).head(1)], 
+                                            axis=0)
+
+# Reset Index    
+sent_topics_sorteddf_mallet.reset_index(drop=True, inplace=True)
+
+# Format
+sent_topics_sorteddf_mallet.columns = ['Topic_Num', "Topic_Perc_Contrib", "Keywords", "Representative Text"]
+
+# Show
+sent_topics_sorteddf_mallet.head(20)
+
 
 
 
