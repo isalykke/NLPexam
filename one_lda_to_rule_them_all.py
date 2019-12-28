@@ -15,7 +15,7 @@ import re,string
 
 data_all = pd.read_csv('preprocessed_txts_full_episodes.csv', encoding="utf8")
 
-data_all = data_all[1:5]
+data_all = data_all[300:320]
 
 clean_dfs_dict = {}
 
@@ -96,9 +96,9 @@ def coherence_maker(lda, dictionary, clean_episodes):
 import gensim
 from gensim import corpora, models, similarities
 
-num_lda_topics = [20, 30] #set number of topics to loop over (min 4 for wordcloud)
+num_lda_topics = [20] #set number of topics to loop over (min 4 for wordcloud)
 
-cutoffs = [10, 56]
+cutoffs = [10]
 
 
 for num in range(len(num_lda_topics)):
@@ -128,9 +128,107 @@ for num in range(len(num_lda_topics)):
         perplexity = pow(2, -(lda.log_perplexity(corpus1))) 
 
         #create a tupple with outcomes
-        lda_stats = (num_lda_topics[num], cutoffs[cut], lda_coherence.get_coherence(), perplexity, lda)
+        lda_stats = (num_lda_topics[num], cutoffs[cut], lda_coherence.get_coherence(), perplexity, lda, corpus1, dictionary)
         full_dataset_results.append(lda_stats)
 
         print(f'topics:{lda_stats[0]}, cutoff: {lda_stats[1]}, coherence: {lda_stats[2]}')
+
+
+'''
+fix later 
+
+results_df = pd.DataFrame(full_dataset_results, columns = ["topics", "cut", "coherence", "perplexity", "lda"])
+
+results_df = results_df.groupby(['cut'])
+
+del results_df['lda']
+del results_df['perplexity']
+
+
+plt.plot(results_df['topics'], results_df['cut'])
+plt.xlabel("Number of Topics")
+plt.ylabel("Mean Coherence Score")
+plt.legend(cutoffs)
+plt.title("Mean Coherence Score as a Function of No of Topics")
+plt.xticks(num_lda_topics)
+plt.show()
+
+
+results_df.groupby(['cut']).plot(legend=True)
+'''
+
+#tretrieve by-document most prominent topics
+lda_model = full_dataset_results[0][4]
+corpus = full_dataset_results[0][5]
+dictionary = full_dataset_results[0][6]
+
+
+for i in range(len(corpus)):
+    print(lda_model.get_document_topics(corpus[i]))
+    print(max(lda_model.get_document_topics(corpus[i]),key=lambda x:x[1]))
+    print("\n")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##########################################################################################
+############ PLOTTING OUTPUT FROM LDA ######################################################
+############################################################################################
+
+
+import pyLDAvis.gensim
+
+panel = pyLDAvis.gensim.prepare(lda_model, corpus, dictionary, mds='TSNE')
+pyLDAvis.display(panel)
+
+%matplotlib inline
+
+
+def format_topics_sentences(ldamodel=None, corpus=corpus, texts=data):
+    # Init output
+    sent_topics_df = pd.DataFrame()
+
+    # Get main topic in each document
+    for i, row_list in enumerate(ldamodel[corpus]):
+        row = row_list[0] if ldamodel.per_word_topics else row_list            
+        # print(row)
+        row = sorted(row, key=lambda x: (x[1]), reverse=True)
+        # Get the Dominant topic, Perc Contribution and Keywords for each document
+        for j, (topic_num, prop_topic) in enumerate(row):
+            if j == 0:  # => dominant topic
+                wp = ldamodel.show_topic(topic_num)
+                topic_keywords = ", ".join([word for word, prop in wp])
+                sent_topics_df = sent_topics_df.append(pd.Series([int(topic_num), round(prop_topic,4), topic_keywords]), ignore_index=True)
+            else:
+                break
+    sent_topics_df.columns = ['Dominant_Topic', 'Perc_Contribution', 'Topic_Keywords']
+
+    # Add original text to the end of the output
+    contents = pd.Series(texts)
+    sent_topics_df = pd.concat([sent_topics_df, contents], axis=1)
+    return(sent_topics_df)
+
+
+df_topic_sents_keywords = format_topics_sentences(ldamodel=lda_model, corpus=corpus, texts=cleaned_episodes)
+
+# Format
+df_dominant_topic = df_topic_sents_keywords.reset_index()
+df_dominant_topic.columns = ['Document_No', 'Dominant_Topic', 'Topic_Perc_Contrib', 'Keywords', 'Text']
+df_dominant_topic.head(10)
+
+plt.plot(df_dominant_topic['Topic_Perc_Contrib'])
+
+
 
 
