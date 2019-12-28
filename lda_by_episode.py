@@ -47,7 +47,7 @@ lmtzr = WordNetLemmatizer()
 clean_dfs = {}
 
 
-def word_cloud_func(lda):
+def word_cloud_func(lda, num_top):
 
     cols = [color for name, color in mcolors.TABLEAU_COLORS.items()]
 
@@ -60,7 +60,7 @@ def word_cloud_func(lda):
                   color_func=lambda *args, **kwargs: cols[i],
                   prefer_horizontal=1.0)
 
-    topics = lda.show_topics(20, formatted=False)
+    topics = lda.show_topics(num_top, formatted=False)
 
     fig, axes = plt.subplots(2, 2, figsize=(10,10), sharex=True, sharey=True)
 
@@ -171,15 +171,15 @@ def coherence_maker(lda, dictionary, clean_episodes):
 ############################################################################################################
 
 
-num_lda_topics = [5, 10, 15, 20, 25] #set number of topics to loop over (min 4 for wordcloud)
+num_lda_topics = [10] #set number of topics to loop over (min 4 for wordcloud)
 
-cutoffs = [11200, 56, 10]
+cutoffs = [10]
 
 col_names = [name for name in df.columns] #make a list of the col names 
 col_names.append('clean_episode')
 col_names.append('topics') #append "topics" to that list
 
-results = []
+best_results = []
 
 
 #loop over each number of topics
@@ -207,14 +207,14 @@ for num in range(len(num_lda_topics)):
         
             lda_coherence = coherence_maker(lda, dictionary, cleaned_episodes)
 
-            perplexity = lda.log_perplexity(corpus1)
+            perplexity = lda.log_perplexity(corpus1) #this should be pow(2, -(lda.log_perplexity(corpus1)))
 
             #wordcloud = word_cloud_func(lda)
             #plt.savefig(fname = f"wordclouds/word_cloud_for{df['unique_month'][0:1]}.png")
 
             #create a tupple with outcomes
             episode_stats = (episode, num_lda_topics[num], cutoffs[cut], lda_coherence.get_coherence(), perplexity, lda)
-            results.append(episode_stats)
+            best_results.append(episode_stats)
 
             print(f'episode:{episode_stats[0]}, topics:{episode_stats[1]}, cutoff: {episode_stats[2]}, coherence: {episode_stats[3]}')
 
@@ -233,6 +233,7 @@ results_df = pd.DataFrame(results, columns = ["episode", "topics", "cut", "coher
 
 summary1 = results_df.groupby(['cut', "topics"]).mean()
 
+
 del summary1['episode']
 del summary1['perplexity']
 
@@ -244,8 +245,9 @@ for cut in cutoffs:
 
     plt.xlabel("Number of Topics")
     plt.ylabel("Mean Coherence Score")
-    plt.legend(cutoffs)
+    ax.legend(cutoffs)
     plt.title("Mean Coherence Score as a Function of No of Topics")
+    plt.xticks((5,10,15,20,25))
 plt.show()
 
 
@@ -260,14 +262,29 @@ for cut in cutoffs:
     plt.plot(data2)
 
     plt.xlabel("Number of Topics")
-    plt.ylabel("Mean Coherence Score")
+    plt.ylabel("Mean Perplexity Score")
     plt.legend(cutoffs)
     plt.title("Mean Perplexity Score as a Function of No of Topics")
+    plt.xticks((5,10,15,20,25))
 plt.show()
 
 
 
+best_model = pd.read_csv('lda_with_25topics_and_cutoff10.csv', encoding="utf8")
+
+my_topics = []
+
+for i in range(len(best_model)):
+
+    my_topics = best_model.iloc[i]['topics']
+    print(my_topics)
+    print("\n")
+
+3976 (ep 327)
 
 
-
+episodeno = results[3976+2190+2190+2190]
+model = episodeno[5]
+word_cloud_func(model, 5)
+episodeno
 
