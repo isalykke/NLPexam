@@ -205,9 +205,9 @@ for i in range(len(csv_list)):
 
 
 #retrieve by-document most prominent topics
-lda_model = full_dataset_results[28][4]
-corpus = full_dataset_results[28][5]
-dictionary = full_dataset_results[28][6]
+lda_model = full_dataset_results[25][4]
+corpus = full_dataset_results[25][5]
+dictionary = full_dataset_results[25][6]
 
 lda_model.show_topics()
 
@@ -231,9 +231,7 @@ panel = pyLDAvis.gensim.prepare(lda_model, corpus, dictionary, mds='TSNE')
 pyLDAvis.display(panel)
 
 
-
-
-def format_topics_sentences(ldamodel=None, corpus=corpus, texts=data):
+def format_topics_sentences(ldamodel, corpus, texts):
     # Init output
     sent_topics_df = pd.DataFrame()
 
@@ -258,38 +256,12 @@ def format_topics_sentences(ldamodel=None, corpus=corpus, texts=data):
     return(sent_topics_df)
 
 
-df_topic_sents_keywords = format_topics_sentences(ldamodel=lda_model, corpus=corpus, texts=cleaned_episodes)
+df_topic_sents_keywords = format_topics_sentences(lda_model, corpus, cleaned_episodes)
 
 # Format
 df_dominant_topic = df_topic_sents_keywords.reset_index()
 df_dominant_topic.columns = ['Document_No', 'Dominant_Topic', 'Topic_Perc_Contrib', 'Keywords', 'Text']
 df_dominant_topic.head(10)
-
-plt.plot(df_dominant_topic['Topic_Perc_Contrib'])
-
-df_dominant_topic.plot(x ='Document_No', y='Topic_Perc_Contrib', kind = 'line')
-
-
-
-# Display setting to show more characters in column
-pd.options.display.max_colwidth = 100
-
-sent_topics_sorteddf_mallet = pd.DataFrame()
-sent_topics_outdf_grpd = df_topic_sents_keywords.groupby('Dominant_Topic')
-
-for i, grp in sent_topics_outdf_grpd:
-    sent_topics_sorteddf_mallet = pd.concat([sent_topics_sorteddf_mallet, 
-                                             grp.sort_values(['Perc_Contribution'], ascending=False).head(1)], 
-                                            axis=0)
-
-# Reset Index    
-sent_topics_sorteddf_mallet.reset_index(drop=True, inplace=True)
-
-# Format
-sent_topics_sorteddf_mallet.columns = ['Topic_Num', "Topic_Perc_Contrib", "Keywords", "Representative Text"]
-
-# Show
-sent_topics_sorteddf_mallet.head(20)
 
 
 
