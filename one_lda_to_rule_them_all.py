@@ -231,6 +231,14 @@ panel = pyLDAvis.gensim.prepare(lda_model, corpus, dictionary, mds='TSNE')
 pyLDAvis.display(panel)
 
 
+#plotting from https://www.machinelearningplus.com/nlp/topic-modeling-visualization-how-to-present-results-lda-models/
+
+
+#########
+#####6. What is the Dominant topic and its percentage contribution in each document
+#########
+
+
 def format_topics_sentences(ldamodel, corpus, texts):
     # Init output
     sent_topics_df = pd.DataFrame()
@@ -264,6 +272,37 @@ df_dominant_topic.columns = ['Document_No', 'Dominant_Topic', 'Topic_Perc_Contri
 df_dominant_topic.head(10)
 
 
+#save dataframe for plotting in R
+df_dominant_topic.to_csv('dominant_topic_by_doc.csv')
+
+
+#########
+#####7. The most representative sentence for each topic
+#########
+
+# Display setting to show more characters in column
+pd.options.display.max_colwidth = 100
+
+sent_topics_sorteddf_mallet = pd.DataFrame()
+sent_topics_outdf_grpd = df_topic_sents_keywords.groupby('Dominant_Topic')
+
+for i, grp in sent_topics_outdf_grpd:
+    sent_topics_sorteddf_mallet = pd.concat([sent_topics_sorteddf_mallet, 
+                                             grp.sort_values(['Perc_Contribution'], ascending=False).head(1)], 
+                                            axis=0)
+
+# Reset Index    
+sent_topics_sorteddf_mallet.reset_index(drop=True, inplace=True)
+
+# Format
+sent_topics_sorteddf_mallet.columns = ['Topic_Num', "Topic_Perc_Contrib", "Keywords", "Representative Text"]
+
+# Show
+sent_topics_sorteddf_mallet.head(10) 
+
+
+#save dataframe for plotting in R
+sent_topics_sorteddf_mallet.to_csv('topics_stats.csv')
 
 
 
