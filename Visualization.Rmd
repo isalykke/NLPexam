@@ -1,0 +1,119 @@
+---
+title: "Visualizations"
+author: "Isa Lykke Hansen"
+date: "12/29/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+library(gridExtra)
+```
+
+Plots for model selection
+```{r}
+model_selection <- read.csv("model_selection_all.csv", header = TRUE)
+  
+coherence_plot <- ggplot(model_selection, aes(topics, coherence)) +
+  geom_line() +
+  theme_bw () +
+  facet_wrap(~cut) +
+  geom_vline(xintercept = c(5, 10, 20, 25, 30, 50, 100, 150),
+             linetype="dotted", color = "lightblue", size=0.6) +
+  scale_x_continuous(breaks=c(5, 10, 20, 25, 30, 50, 100, 150)) +
+  labs(title = 'Model Coherence as a Function of the Number of Topics',
+       x = 'No of Topics',
+       y = 'Coherence Score')
+
+
+
+ggplot(model_selection, aes(topics, perplexity)) +
+  geom_line() +
+  theme_bw () +
+  facet_wrap(~cut) +
+  geom_vline(xintercept = c(5, 10, 20, 25, 30, 50, 100, 150),
+             linetype="dotted", color = "lightblue", size=0.6) +
+  scale_x_continuous(breaks=c(5, 10, 20, 25, 30, 50, 100, 150)) +
+  labs(title = 'Model Perplexity as a Function of the Number of Topics',
+       x = 'No of Topics',
+       y = 'Perplexity Score')
+
+
+```
+
+Plots for dominant topics
+```{r}
+#first, fix the data:
+dominant <- read.csv("dominant_topic_by_doc.csv", header = TRUE)
+#add data from original dataset:
+original_data <- read.csv('preprocessed_txts_full_episodes.csv') %>% 
+  select(date, episode, description, title) %>% 
+  mutate('Document_No' = seq(0, 729, 1))
+
+dominant <- left_join(dominant, original_data)
+dominant$date <- as.Date(dominant$date)
+
+grouped_dom <- dominant %>% 
+  group_by(Dominant_Topic) %>% 
+  summarise(no_episode = n())
+
+
+#plotting commences
+
+ggplot(grouped_dom, aes(Dominant_Topic, no_episode, 
+                        fill=factor(ifelse(no_episode > 10,"highlight","notmal")))) +
+  geom_bar(stat = 'identity', width = 0.3) +
+  scale_fill_manual(name = "Dominant_Topic", values=c("red","grey50")) +
+  theme_bw () +
+  scale_x_continuous(breaks = seq(0, 99, 1)) +
+  labs(title = 'Most Prominent Topics Across All Episodes',
+       x = 'Topic No',
+       y = 'Count')
+
+
+```
+
+Deepfakes- The plot thickens...:
+```{r}
+
+#datawrangling
+dominant <- dominant %>% 
+  mutate("is_deepfake" = ifelse(Dominant_Topic %in% c(93, 7, 25), Topic_Perc_Contrib, 0))
+
+deepfake <- read.csv("deepfakes_google.csv", header = TRUE, skip = 1) %>% 
+  mutate(month = ymd(paste0(Måned, "-01"))) %>%
+  mutate(is_deepfake = as.numeric(as.character(deepfakes...USA.))) %>% 
+  mutate(is_deepfake = if_else(is.na(is_deepfake), 0, is_deepfake)) %>% 
+  filter(month >= as.Date('2005-09-01'))
+
+
+#plotting
+
+sn_DF_plot <- ggplot(dominant, aes(date, is_deepfake)) +
+  geom_line() +
+  theme_bw () +
+  theme(axis.text.x = element_text(angle = 45)) +
+  theme(axis.title.x=element_blank()) +
+  geom_ribbon(aes(ymin = 0, ymax = is_deepfake), fill = "#548235", color = "#548235", alpha = 0.6) +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "6 month") +
+  labs(title = 'Proportion of Topics Related to "deepfakes" over Time',
+       x = 'Time',
+       y = 'Topic Contribution (%)')
+
+google_DF_plot <- ggplot(deepfake, aes(month, is_deepfake)) +
+  geom_line() +
+  theme_bw () +
+  geom_ribbon(aes(ymin = 0, ymax = is_deepfake), fill = "#548235", color = "#548235", alpha = 0.6) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "6 month") +
+  labs(title = 'Popularity of Search Term "deepfakes" on Google Trends',
+       x = 'Time',
+       y = 'Search Popularity')
+
+
+grid.arrange(sn_DF_plot, google_DF_plot, nrow = 2)
+
+```
+
