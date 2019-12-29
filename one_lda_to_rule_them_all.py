@@ -15,6 +15,10 @@ import re,string
 
 %matplotlib inline
 
+from matplotlib import pyplot as plt
+from wordcloud import WordCloud, STOPWORDS
+import matplotlib.colors as mcolors
+
 data_all = pd.read_csv('preprocessed_txts_full_episodes.csv', encoding="utf8")
 
 #data_all = data_all[300:320]
@@ -28,8 +32,39 @@ stoplist = stopwords.words('english')
 lmtzr = WordNetLemmatizer()
 
 ##########################################
-############# TEXT CLEANUP ################
+############# FUNCTION DEFINITIONS ################
 ############################################
+
+def word_cloud_func(lda, num_top):
+
+    cols = [color for name, color in mcolors.TABLEAU_COLORS.items()]
+
+    cloud = WordCloud(stopwords=stoplist,
+                  background_color='white',
+                  width=2500,
+                  height=1800,
+                  max_words=20,
+                  colormap='tab10',
+                  color_func=lambda *args, **kwargs: cols[i],
+                  prefer_horizontal=1.0)
+
+    topics = lda.show_topics(num_top, formatted=False)
+
+    fig, axes = plt.subplots(2, 2, figsize=(10,10), sharex=True, sharey=True)
+
+    for i, ax in enumerate(axes.flatten()):
+        fig.add_subplot(ax)
+        topic_words = dict(topics[i][1])
+        cloud.generate_from_frequencies(topic_words, max_font_size=300)
+        plt.gca().imshow(cloud)
+        plt.gca().set_title('Topic ' + str(i), fontdict=dict(size=16))
+        plt.gca().axis('off')
+
+
+    plt.subplots_adjust(wspace=0, hspace=0)
+    plt.axis('off')
+    plt.margins(x=0, y=0)
+    plt.tight_layout()
 
 def df_cleaner(df, cutoff):
 
@@ -145,40 +180,36 @@ for i in range(len(full_dataset_results)):
     cut = full_dataset_results[i][1]
     coherence = full_dataset_results[i][2]
     perplexity = full_dataset_results[i][3]
+    lda = full_dataset_results[i][4]
 
-    tub = (topics, cut, coherence, perplexity)
+    tub = (topics, cut, coherence, perplexity, lda)
 
     csv_list.append(tub)
 
-model_selection = pd.DataFrame(csv_list, columns = ["topics", "cut", "coherence", "perplexity"])
+model_selection = pd.DataFrame(csv_list, columns = ["topics", "cut", "coherence", "perplexity", "lda"])
+
 model_selection.to_csv('model_selection_all.csv')
 
+##########################################################################################
+############ PLOTTING OUTPUT FROM LDA ######################################################
+############################################################################################
 
-'''
-results_df = pd.DataFrame(full_dataset_results, columns = ["topics", "cut", "coherence", "perplexity", "lda", "corp", "dict"])
-
-results_df = results_df.groupby(['cut']).size().unstack(fill_value=0).plot()
-
-del results_df['lda']
-del results_df['perplexity']
-
-
-plt.plot(results_df['topics'], results_df['cut'])
-plt.xlabel("Number of Topics")
-plt.ylabel("Mean Coherence Score")
-plt.legend(cutoffs)
-plt.title("Mean Coherence Score as a Function of No of Topics")
-plt.xticks(num_lda_topics)
-plt.show()
+#create wordclouds for manual inspection of topics
+for i in range(len(csv_list)):
+    paramcombo = csv_list[i]
+    print(paramcombo)
+    model = paramcombo[4]
+    word_cloud_func(model, 5)
+    plt.savefig(fname = f"wordclouds/word_cloud_for{paramcombo[0]}topics{paramcombo[1]}cutoff.png")
 
 
-results_df.groupby(['cut']).plot(legend=True)
-'''
 
 #retrieve by-document most prominent topics
-lda_model = full_dataset_results[24][4]
-corpus = full_dataset_results[24][5]
-dictionary = full_dataset_results[24][6]
+lda_model = full_dataset_results[28][4]
+corpus = full_dataset_results[28][5]
+dictionary = full_dataset_results[28][6]
+
+lda_model.show_topics()
 
 
 for i in range(len(corpus)):
@@ -193,15 +224,13 @@ tops, probs = zip(*res[0])
 
 
 
-##########################################################################################
-############ PLOTTING OUTPUT FROM LDA ######################################################
-############################################################################################
-
 
 import pyLDAvis.gensim
 
 panel = pyLDAvis.gensim.prepare(lda_model, corpus, dictionary, mds='TSNE')
 pyLDAvis.display(panel)
+
+
 
 
 def format_topics_sentences(ldamodel=None, corpus=corpus, texts=data):
